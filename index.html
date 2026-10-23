@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111b2b">
+  <meta name="description" content="Interactive mathematical visualizations for teaching and exploration, including Diseases & Dice epidemic simulations.">
+  <title>Mathematical Visualizations</title>
+  <style>
+    :root { color-scheme: dark; --bg:#101827; --card:#1b2940; --ink:#f5f6f8; --muted:#bac9dc; --line:#344761; --accent:#f1c777; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(ellipse at 75% -15%, #263d5b 0%, transparent 50%),var(--bg); color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; line-height:1.6; }
+    .wrap { max-width:1020px; margin:0 auto; padding:64px 24px 90px; }
+    .eyebrow { font-size:.79rem; font-weight:750; letter-spacing:.19em; text-transform:uppercase; color:var(--accent); }
+    h1 { margin:10px 0 16px; font-size:clamp(2.5rem,7vw,4.4rem); line-height:1.1; letter-spacing:-.045em; }
+    .intro { max-width:660px; color:var(--muted); font-size:1.15rem; }
+    .section { margin-top:58px; }
+    .section h2 { margin:0 0 9px; font-size:1.75rem; letter-spacing:-.025em; }
+    .section p { margin:0 0 25px; color:var(--muted); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+    .card { display:flex; flex-direction:column; gap:12px; min-height:225px; padding:28px; border:1px solid var(--line); border-radius:16px; background:linear-gradient(155deg,#21324c,#172438); color:inherit; text-decoration:none; transition:transform .16s,border-color .16s,background .16s; }
+    .card:hover,.card:focus-visible { transform:translateY(-3px); border-color:var(--accent); outline:none; }
+    .icon { font-size:2rem; line-height:1.2; }
+    .card h3 { margin:0; font-size:1.42rem; }
+    .card p { margin:0; color:var(--muted); flex:1; }
+    .go { font-weight:700; color:var(--accent); }
+    .note { border-top:1px solid var(--line); margin-top:58px; padding-top:22px; color:var(--muted); font-size:.93rem; }
+    .note a { color:var(--accent); }
+    @media(max-width:640px) { .wrap{padding:44px 18px 70px;} .grid{grid-template-columns:1fr;} .card{min-height:190px;} }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="eyebrow">Interactive Mathematics</div>
+    <h1>Mathematical<br>Visualizations</h1>
+    <p class="intro">Interactive tools for exploring mathematical ideas, experimenting with models, and bringing mathematics to life in the classroom.</p>
+
+    <section class="section" aria-labelledby="diseases-title">
+      <h2 id="diseases-title">🎲 Diseases &amp; Dice</h2>
+      <p>What can a handful of dice tell us about the spread of disease? Play a stochastic epidemic game, compare many outcomes, and explore mathematical predictions.</p>
+      <div class="grid">
+        <a class="card" href="discrete.html">
+          <span class="icon" aria-hidden="true">🎲</span>
+          <h3>Discrete-Time Simulator</h3>
+          <p>Follow epidemics round by round. Compare an individual game, 50 simulated games, and a discrete-time mathematical model.</p>
+          <span class="go">Open simulator →</span>
+        </a>
+        <a class="card" href="continuous.html">
+          <span class="icon" aria-hidden="true">📈</span>
+          <h3>Continuous SIR Simulator</h3>
+          <p>Explore the continuous susceptible–infected–recovered model and compare its predictions with the dice-based epidemic game.</p>
+          <span class="go">Open simulator →</span>
+        </a>
+      </div>
+    </section>
+
+    <footer class="note">More mathematical visualizations will be added here over time. <a href="https://github.com/Dan-Look/math-visualizations">View the project on GitHub</a>.</footer>
+  </main>
+</body>
+</html>
