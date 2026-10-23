@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diseases &amp; Dice — Discrete and Continuous Models</title>
+<style>
+:root{color-scheme:dark;--bg:#101827;--panel:#1b2940;--text:#f5f6f8;--muted:#bac9dc;--accent:#f1c777;--border:#344761}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:linear-gradient(110deg,#1a2a40,#101827);border-bottom:1px solid var(--border);padding:14px max(16px,calc((100vw - 1400px)/2));display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.brand strong{font-size:1.15rem}.home{color:var(--muted);text-decoration:none;font-size:.88rem}.home:hover{color:var(--accent)}
+.tabs{display:flex;gap:6px;padding:5px;border:1px solid var(--border);border-radius:12px;background:#0d1726}
+.tabs button{border:0;background:transparent;color:var(--muted);border-radius:8px;padding:10px 18px;font-size:.95rem;font-weight:700;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:#182030}.tabs button:focus-visible{outline:2px solid white;outline-offset:2px}
+.frame-wrap{width:100%;height:calc(100vh - 82px);min-height:550px}iframe{display:block;width:100%;height:100%;border:0;background:white}iframe[hidden]{display:none}
+@media(max-width:700px){header{padding:12px 14px}.frame-wrap{height:calc(100vh - 120px)}.tabs{width:100%}.tabs button{flex:1;padding:10px 8px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><a class="home" href="index.html">← All visualizations</a><strong>🎲 Diseases &amp; Dice</strong></div>
+  <div class="tabs" role="tablist" aria-label="Model type">
+    <button id="tab-discrete" type="button" role="tab" aria-selected="true" aria-controls="panel-discrete">Discrete Model</button>
+    <button id="tab-continuous" type="button" role="tab" aria-selected="false" aria-controls="panel-continuous" tabindex="-1">Continuous Model</button>
+  </div>
+</header>
+<main class="frame-wrap">
+  <iframe id="panel-discrete" title="Discrete Diseases and Dice simulator" src="discrete.html" role="tabpanel"></iframe>
+  <iframe id="panel-continuous" title="Continuous Diseases and Dice simulator" src="continuous.html" role="tabpanel" hidden></iframe>
+</main>
+<script>
+const modes=['discrete','continuous'];
+function selectMode(mode,focus=false){
+  if(!modes.includes(mode))return;
+  for(const m of modes){
+    const active=m===mode,tab=document.getElementById('tab-'+m),panel=document.getElementById('panel-'+m);
+    tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;panel.hidden=!active;
+  }
+  if(focus)document.getElementById('tab-'+mode).focus();
+  history.replaceState(null,'','#'+mode);
+}
+for(const mode of modes){
+  const tab=document.getElementById('tab-'+mode);
+  tab.addEventListener('click',()=>selectMode(mode));
+  tab.addEventListener('keydown',e=>{
+    if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+    e.preventDefault();let next=e.key==='Home'?0:e.key==='End'?1:(modes.indexOf(mode)+(e.key==='ArrowRight'?1:1))%2;
+    selectMode(modes[next],true);
+  });
+}
+window.addEventListener('hashchange',()=>selectMode(location.hash.slice(1)));
+selectMode(modes.includes(location.hash.slice(1))?location.hash.slice(1):'discrete');
+</script>
+</body>
+</html>
