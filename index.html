@@ -1,0 +1,544 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Diseases & Dice — Discrete Time — SIR Classroom Simulator</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#172536;background:#f5f7fb}*{box-sizing:border-box}body{margin:0;padding:18px}h1{margin:0;font-size:1.6rem}p{color:#536175;margin:6px 0 14px}.layout{display:grid;grid-template-columns:270px minmax(0,1fr);gap:16px;max-width:1400px;margin:auto}.panel{background:white;border:1px solid #dce3eb;border-radius:13px;padding:16px;min-width:0}.controls label{display:block;font-size:13px;font-weight:650;margin:13px 0 4px}.controls input,.controls select{width:100%;padding:9px;border:1px solid #bbc8d5;border-radius:7px;font-size:16px}.buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}button{cursor:pointer;border:1px solid #b7c5d3;border-radius:8px;padding:10px 13px;background:#eef3f9;font-weight:650;color:#193148}button.primary{background:#185b9d;color:white;border-color:#185b9d}button:disabled{opacity:.45;cursor:default}.stats{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}.stat{border-radius:9px;padding:10px 14px;background:#f0f3f8;flex:1;min-width:95px}.stat strong{display:block;font-size:25px}.stat.s{border-left:5px solid #5e93cf}.stat.i{border-left:5px solid #dc6262}.stat.r{border-left:5px solid #56a27c}.stat.t{border-left:5px solid #758092}.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.rounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px;margin-top:12px}.group{border:1px solid #dce3eb;border-radius:10px;padding:10px;background:#fbfcfe}.group h3{margin:0 0 9px;font-size:13px;color:#536175}.people{display:flex;flex-wrap:wrap;gap:7px}.person{width:39px;height:51px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid transparent}.person.s{background:#dceafb;color:#16436e}.person.i{background:#f9dada;color:#8b2525}.person.r{background:#d9f1e4;color:#21613f}.person.changed{border-color:#d69c13}.die{font-size:19px;line-height:22px}.chart{width:100%;height:auto;display:block}.note{font-size:12px;line-height:1.5;color:#5e6d7d}.message{margin:10px 0;color:#315c83;font-weight:600;font-size:13px}.legend{font-size:13px;display:flex;flex-wrap:wrap;gap:12px}.legend span{white-space:nowrap}.dot{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px}.scroll{max-height:520px;overflow:auto}.right{display:flex;flex-direction:column;gap:14px}@media(max-width:760px){body{padding:10px}.layout{grid-template-columns:1fr}.controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}.controls .full{grid-column:1/-1}.panel{padding:12px}} 
+
+/* Fantasy tabletop-inspired parchment, ink and burgundy styling */
+:root{font-family:Georgia, 'Times New Roman',serif;color:#30251c;background:#221b1a}
+body{background:radial-gradient(ellipse at top,#554238 0%,#241c1b 70%);padding:22px}
+.panel{background:#f2e6ca;border:3px double #886b42;border-radius:7px;box-shadow:inset 0 0 0 3px #e0d0a9,0 6px 18px #0005}
+h1{font-family:Georgia,serif;letter-spacing:.04em;color:#702f2b;font-variant:small-caps;font-size:2rem;text-shadow:0 1px #fff6}
+h2{color:#63342b;font-variant:small-caps;letter-spacing:.025em}
+p,.note{color:#655342}
+.controls label{color:#4c3527;font-family:Georgia,serif}
+.controls input,.controls select{background:#fffaf0;border:1px solid #a48a61;color:#2d261d}
+button{font-family:Georgia,serif;background:#e2d1aa;border:1px solid #8d714b;color:#493323;border-radius:5px}
+button.primary{background:#77372f;border-color:#4f211f;color:#fff4db}
+button:hover:not(:disabled){filter:brightness(1.08)}
+.stat{background:#e9d9b7;border-radius:4px}
+.group{background:#f9f0d9;border:1px solid #bba47d;border-radius:5px}
+.group h3{color:#6e4b32}
+.message{color:#79372c}
+.person{border-radius:5px}
+@media(max-width:760px){body{padding:9px}}
+
+/* Compact classroom presentation layout */
+.layout{max-width:1600px;grid-template-columns:minmax(260px,310px) minmax(0,1fr);align-items:start;gap:12px}
+body{padding:12px}.panel{padding:13px}.controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 9px}.controls .full{grid-column:1/-1}.controls label{font-size:12px;line-height:1.2;margin:8px 0 4px}.controls input,.controls select{padding:7px;font-size:13px;min-width:0}.buttons{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:7px}.buttons button{padding:9px 5px;font-size:13px}.stat{padding:7px 10px;min-width:75px;font-size:12px}.stat strong{font-size:22px}.stats{margin:9px 0}.right{gap:10px}.rounds{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px}.group{padding:7px}.people{gap:4px}.person{width:35px;height:44px;font-size:11px}.chart{max-height:290px}.legend{font-size:12px;gap:8px}.note{font-size:11px}.message{margin:7px 0}.control-note{margin-top:9px}#groups{max-height:355px;overflow:auto;align-content:start}#history{max-height:75px;overflow:auto}.modelbox{padding:9px;background:#e9d9b7;border:1px solid #bba47d;border-radius:5px;font-size:12px;line-height:1.6}.modelbox strong{color:#63342b}.checkrow{display:flex;gap:8px;align-items:center;font-size:13px;margin:8px 0}.checkrow input{width:auto}.chartkey{font-size:12px;color:#655342;margin:3px 0 6px}
+@media(max-width:950px){.layout{grid-template-columns:1fr}.controls{grid-template-columns:repeat(3,minmax(0,1fr))}.controls .full{grid-column:1/-1}#groups{max-height:none}.buttons{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:560px){.controls{grid-template-columns:repeat(2,minmax(0,1fr))}.buttons{grid-template-columns:1fr 1fr}.rounds{grid-template-columns:repeat(2,minmax(0,1fr))}.stat{min-width:65px}}
+
+/* Compact numbered tabletop tokens: identities persist across rounds. */
+#groups.rounds{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:7px;max-height:none;overflow:visible;margin-top:7px}
+#groups .compact-group{display:flex;align-items:center;gap:7px;min-height:43px;padding:6px 8px;border-radius:6px}
+#groups .group-number{font:700 12px system-ui,sans-serif;color:#80664d;min-width:15px}
+#groups .people{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
+#groups .person-dot{width:23px;height:23px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;border:1px solid rgba(0,0,0,.18);font:700 10px/1 system-ui,sans-serif;color:#10283b;font-variant-numeric:tabular-nums}
+#groups .person-dot.s{background:#5e93cf}#groups .person-dot.i{background:#dc6262;color:#521616}#groups .person-dot.r{background:#56a27c;color:#113c27}
+#groups .person-dot.changed{outline:2px solid #bd8a25;outline-offset:1px}
+@media(max-width:560px){#groups.rounds{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}}
+ .finish-banner{background:#e7d4a8;border:2px solid #9a733d;border-radius:8px;padding:12px 15px;margin:9px 0;color:#56301f;text-align:center;font-size:15px;line-height:1.6}.finish-banner strong{display:block;font-size:19px;color:#6d2d26}.finish-banner .finish-stats{font-weight:700;font-size:17px} 
+/* Side-by-side classroom view: seating and graph remain visible together. */
+.layout{grid-template-columns:minmax(245px,290px) minmax(0,1fr);max-width:1700px}
+.right{display:grid;grid-template-columns:minmax(260px,0.82fr) minmax(390px,1.18fr);align-items:start;gap:10px}
+.right>section:nth-child(3){grid-column:1/-1}
+.right>section:first-child{min-width:0}
+.right>section:nth-child(2){min-width:0}
+#groups.rounds{grid-template-columns:repeat(auto-fill,minmax(87px,1fr));gap:5px;max-height:none}
+#groups .compact-group{min-height:31px;padding:4px;gap:3px}
+#groups .group-number{font-size:10px;min-width:12px}
+#groups .people{gap:2px}
+#groups .person-dot{width:19px;height:19px;font-size:9px}
+.right .panel{padding:10px}
+.right .stats{gap:4px;margin:6px 0}
+.right .stat{padding:5px;min-width:58px;font-size:10px}
+.right .stat strong{font-size:19px}
+.right .legend{font-size:10px;gap:6px}
+.right .chart{max-height:none}
+.right .chartkey{font-size:11px}
+@media(max-width:1150px){.layout{grid-template-columns:230px minmax(0,1fr)}.right{grid-template-columns:minmax(190px,.8fr) minmax(290px,1.2fr)}#groups.rounds{grid-template-columns:repeat(auto-fill,minmax(74px,1fr))}#groups .person-dot{width:17px;height:17px;font-size:8px}}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.right{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}.controls{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:620px){.right{grid-template-columns:1fr}.right>section:nth-child(3){grid-column:auto}.controls{grid-template-columns:repeat(2,minmax(0,1fr))}#groups.rounds{grid-template-columns:repeat(auto-fill,minmax(85px,1fr))}}
+/* Keep both graphs visible at once; reclaim space from explanatory text. */
+#groups[hidden],#depanel[hidden]{display:none!important}
+#depanel .chart{width:100%;height:auto}
+#thresholdinfo{padding:7px 10px;margin-top:6px;font-size:13px;font-weight:700}
+.right{align-items:stretch}
+.right>section:first-child,.right>section:nth-child(2){align-self:start}
+.right .chart{width:100%;height:auto}
+@media(min-width:851px){.right{grid-template-columns:minmax(0,1fr) minmax(0,1.12fr)}}
+
+/* Two vertically aligned, compact plots in the right-hand panel. */
+.right{grid-template-columns:minmax(260px,.85fr) minmax(390px,1.15fr);align-items:start}
+.right>section:nth-child(2) .chart{display:block;width:100%;height:auto;max-height:235px}
+#depanel{margin-top:9px;padding-top:7px;border-top:1px solid #c9b48d}
+#depanel .chartkey{margin:0 0 2px}
+#groups.rounds{grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px}
+#groups .compact-group{min-height:25px;padding:3px;gap:3px}
+#groups .people{gap:3px}
+#groups .person-dot{width:14px;height:14px;font-size:0}
+#groups .group-number{font-size:9px;min-width:10px}
+.finish-banner{padding:7px 9px;font-size:12px;line-height:1.3;margin:5px 0}
+.finish-banner strong{font-size:15px}.finish-banner .finish-stats{font-size:13px}
+.right>section:first-child .message{font-size:12px}
+@media(max-width:850px){.right{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}}
+@media(max-width:620px){.right{grid-template-columns:1fr}}
+
+/* Graph presentation mode */
+body.graph-focus{padding:10px}
+body.graph-focus .layout{display:block;max-width:none}
+body.graph-focus .layout>aside,body.graph-focus .right>section:first-child,body.graph-focus .right>section:nth-child(3){display:none}
+body.graph-focus .right{display:block}
+body.graph-focus .right>section:nth-child(2){width:100%;max-width:none}
+body.graph-focus .right .chart{max-height:none;width:100%}
+body.graph-focus #depanel .chart{max-height:none}
+body.graph-focus .chartkey{font-size:14px}
+.graph-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.focus-controls{display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0}
+body.graph-focus .focus-controls{display:flex}
+body.graph-focus #chart,body.graph-focus #dechart,body.graph-focus #batchchart{max-height:390px}
+#batchpanel{border-top:1px solid #c9b48d;margin-top:10px;padding-top:5px}#batchpanel[hidden]{display:none!important}#batchchart{width:100%;height:auto;max-height:250px}
+@media(max-width:700px){body.graph-focus #chart,body.graph-focus #dechart{max-height:290px}}
+
+/* Fit both comparison plots within the visible presentation window. */
+body.graph-focus .right>section:nth-child(2){padding:8px 12px}
+body.graph-focus .right>section:nth-child(2) .top h2{font-size:17px!important}
+body.graph-focus .focus-controls{margin:4px 0;gap:6px}
+body.graph-focus .chartkey{font-size:12px;margin:2px 0}
+body.graph-focus .checkrow{margin:2px 0 3px!important}
+body.graph-focus #thresholdinfo{padding:3px 8px;margin-top:3px;font-size:12px}
+body.graph-focus #depanel{margin-top:3px;padding-top:3px}
+body.graph-focus #chart,body.graph-focus #dechart{
+  display:block;width:100%;height:clamp(110px,calc((100dvh - 240px)/2),340px);
+  max-height:none!important;aspect-ratio:auto;
+}
+@media(max-height:650px){body.graph-focus #chart,body.graph-focus #dechart{height:clamp(90px,calc((100dvh - 225px)/2),240px)}}
+ .model-toggles{display:flex;gap:8px 16px;flex-wrap:wrap;font-size:12px;margin:7px 0;color:#573b29}.model-toggles label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}.model-toggles input{accent-color:#78432c}
+</style>
+<div class="layout"><aside class="panel"><h1>⚔ Diseases & Dice</h1><div class="controls">
+<div><label for="population">Students</label><input id="population" type="number" min="2" max="240" value="36"></div>
+<div><label for="size">Students per group</label><input id="size" type="number" min="2" max="24" value="3"></div>
+<div><label for="initial">Initially infected</label><input id="initial" type="number" min="1" max="240" value="1"></div>
+<div><label for="faces">Dice sides</label><input id="faces" type="number" min="2" max="20" value="6"></div>
+<div><label for="recover">Recover when infected rolls…</label><select id="recover"><option value="1">1</option><option value="2">1 or 2</option><option value="3">1, 2, or 3</option><option value="0">Never</option></select></div>
+<div><label for="margin">Infection requires infected roll…</label><select id="margin"><option value="1">Higher than susceptible</option><option value="2">At least 2 higher</option><option value="3">At least 3 higher</option><option value="0">At least as high</option><option value="4">At least 4 higher</option></select></div>
+
+<div class="full"><label class="checkrow"><input id="headtohead" type="checkbox"> Head-to-head (fresh dice per matchup)</label></div>
+<div class="full"><label class="checkrow"><input id="waning" type="checkbox"> Allow immunity loss</label></div>
+<div class="full immunity-controls" id="immunitycontrols" hidden><div class="immunity-grid"><div><label for="immunityfaces">Immunity die</label><select id="immunityfaces"><option value="20" selected>d20</option><option value="12">d12</option><option value="10">d10</option><option value="8">d8</option><option value="6">d6</option><option value="4">d4</option></select></div><div><label for="immunitybelow">Lose immunity below</label><input id="immunitybelow" type="number" min="1" max="21" value="4"></div></div><div class="note" id="immunityrate">15% chance per round.</div></div>
+<div class="maxrounds-field"><label for="maxrounds">Maximum rounds</label><input id="maxrounds" type="number" min="1" max="500" value="60"></div>
+<div class="endrule-field"><label for="endrule">Stop game when…</label><select id="endrule"><option value="I">No infected students remain (I = 0)</option><option value="S">No susceptible students remain (S = 0)</option></select></div>
+<div class="full buttons"><button class="primary" id="reset">↻ New game</button><button class="primary" id="step">▶ Next round</button><button id="auto">▷ Auto-play</button><button id="back">↶ Undo</button></div>
+<div class="full"><label for="speed">Auto-play speed</label><input id="speed" type="range" min=".5" max="8" step=".5" value="2"><output id="speedout">2 rounds/sec</output></div>
+</div></aside>
+<main class="right"><section class="panel"><div class="top"><h2 style="margin:0;font-size:20px">Round <span id="round">0</span></h2><div class="legend"><span><i class="dot" style="background:#5e93cf"></i>Susceptible</span><span><i class="dot" style="background:#dc6262"></i>Infected</span><span><i class="dot" style="background:#56a27c"></i>Recovered</span><span>🟨 Changed this round</span></div></div><div class="stats"><div class="stat s">Susceptible<strong id="s">35</strong></div><div class="stat i">Infected<strong id="i">1</strong></div><div class="stat r">Recovered<strong id="r">0</strong></div><div class="stat t">Total<strong id="total">36</strong></div></div><div class="message" id="message" aria-live="polite">Press Next round to shuffle groups and roll.</div><div id="finish" class="finish-banner" hidden aria-live="polite"></div><div class="rounds" id="groups"></div></section>
+<section class="panel"><div class="top"><h2 style="font-size:18px;margin:0">Epidemic over time</h2><div class="graph-actions"><label class="checkrow"><input id="model" type="checkbox"> Show discrete model below</label><button type="button" id="batch">🎲 Run 50 games</button><button type="button" id="focus">⛶ Enlarge graphs</button></div></div><div class="focus-controls"><button type="button" id="focusstep">▶ Next round</button><button type="button" id="focusauto">▷ Auto-play</button><span id="focusround">Round 0</span><span id="focuscounts"></span></div><div class="chartkey">Solid lines = random dice simulation</div><label class="checkrow" style="margin:3px 0 5px"><input id="showthreshold" type="checkbox"> Show threshold and crossing lines</label> <label class="checkrow" style="margin:3px 0 5px"><input id="lockaxis" type="checkbox"> Lock shared time axis</label><svg class="chart" id="chart" viewBox="0 0 760 240" role="img" aria-label="Line chart of susceptible, infected, and recovered students by round"></svg><div class="modelbox" id="thresholdinfo"></div><div id="depanel" hidden><div class="chartkey">SIR recurrence relations · same axes and scale</div><svg class="chart" id="dechart" viewBox="0 0 760 255" role="img" aria-label="SIR differential equation solution curves"></svg></div><div id="batchpanel" hidden><div class="top"><h3 style="margin:10px 0 4px;font-size:17px">50-game ensemble</h3><button type="button" id="hidebatch">Hide 50-game plot</button></div><div class="chartkey">Faint: individual games · Thick: 50-game mean · Dashed: discrete SIR prediction</div><div class="model-toggles"><label><input type="checkbox" id="classicmodel" checked> Discrete SIR prediction (dashed)</label><label><input type="checkbox" id="onlyinfected"> Infected curves only</label></div><svg class="chart" id="batchchart" viewBox="0 0 760 255" role="img" aria-label="Fifty simulated SIR trajectories and their average"></svg><div id="batchsummary" class="modelbox"></div></div></section>
+<section class="panel"><div class="top"><h2 style="font-size:18px;margin:0">Round-by-round totals</h2><button id="csv">Export CSV</button></div><div id="history" class="note" style="margin-top:8px"></div></section></main></div>
+<script>
+/* Arrange the existing live charts into a compact 2×2 classroom dashboard. */
+(()=>{
+ const right=document.querySelector('.right');
+ const graph=right.children[1];
+ const de=document.getElementById('depanel');
+ const batch=document.getElementById('batchpanel');
+ const deCard=document.createElement('section');deCard.className='panel comparison-card';deCard.id='decard';
+ deCard.innerHTML='<div class="top"><h2>Discrete-time SIR model</h2><div class="graph-actions"><span class="chartkey">Same time & population axes</span><button type="button" id="togglede" aria-pressed="false">Hide SIR graph</button></div></div>';
+ deCard.appendChild(de);
+ const batchCard=document.createElement('section');batchCard.className='panel comparison-card';batchCard.id='batchcard';
+ batchCard.appendChild(batch);
+ right.insertBefore(deCard,right.children[2]);right.insertBefore(batchCard,right.children[3]);
+ document.getElementById('model').checked=true;
+ document.getElementById('model').closest('label').style.display='none';
+ const bar=document.createElement('div');bar.className='dashboard-graph-tools';
+ const action=graph.querySelector('.graph-actions');
+ const toggles=[...graph.querySelectorAll('label.checkrow')].filter(el=>el.querySelector('#showthreshold,#lockaxis'));
+ toggles.forEach(el=>bar.appendChild(el));
+ graph.insertBefore(bar,graph.querySelector('.chartkey'));
+ const originalTitle=graph.querySelector('h2');originalTitle.textContent='Individual game';
+ const reveal=document.createElement('button');reveal.type='button';reveal.id='showsir';reveal.textContent='Show SIR graph';action.insertBefore(reveal,action.firstChild);
+ const deLabel=de.querySelector('.chartkey');if(deLabel)deLabel.remove();
+ const batchTitle=batch.querySelector('h3');if(batchTitle)batchTitle.textContent='50-game ensemble';
+ const hist=right.querySelector('section:last-child');hist.classList.add('history-card');
+ const csv=document.getElementById('csv');csv.textContent='↓ Export CSV';csv.classList.add('csv-compact');document.querySelector('.controls').appendChild(csv);hist.remove();
+})();
+</script>
+<style>
+/* Four-quadrant teaching view; the game remains in the upper left. */
+.layout{max-width:1900px;grid-template-columns:minmax(235px,290px) minmax(0,1fr);align-items:start}
+.right{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:10px;align-items:start}
+.right>section{min-width:0}
+.right>section:first-child{grid-column:1;grid-row:1}
+.right>section:nth-child(2){grid-column:2;grid-row:1}
+#decard{grid-column:1;grid-row:2}
+#batchcard{grid-column:2;grid-row:2}
+.history-card{grid-column:1/-1;grid-row:3;padding:8px 12px}
+.right .panel{padding:10px}
+.right h2{font-size:17px!important;margin:0}
+.right .chart{max-height:none!important;width:100%;height:auto}
+#chart,#dechart,#batchchart{display:block;width:100%;height:auto;aspect-ratio:760/255}
+#depanel{margin:0;padding:0}
+#batchpanel{border:0;margin:0;padding:0}
+#batchpanel .top h3{font-size:17px!important;margin:0!important}
+#batchpanel .top button{padding:5px 8px;font-size:11px}
+#batchpanel .chartkey{margin:3px 0;font-size:11px}
+#batchpanel .model-toggles{margin:3px 0;font-size:11px;gap:5px 12px}
+#thresholdinfo,#batchsummary{padding:5px 7px;font-size:11px;line-height:1.3;margin-top:3px}
+#thresholdinfo span{display:none}
+.graph-actions{gap:4px}.graph-actions button{padding:6px 8px;font-size:11px}
+.dashboard-graph-tools{display:flex;gap:5px 14px;flex-wrap:wrap;margin:3px 0}
+.dashboard-graph-tools .checkrow{font-size:11px!important;margin:0!important}
+.right .chartkey{font-size:11px;margin:3px 0}
+#groups.rounds{grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:4px}
+#groups .person-dot{width:15px;height:15px}
+#decard[hidden],#decard:has(#depanel[hidden]),#batchcard:has(#batchpanel[hidden]){display:none!important}
+body.graph-focus #batchsummary, body.graph-focus #batchcard #batchsummary, body.graph-focus #batchpanel > #batchsummary {display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important}
+/* Focus mode expands a clean three-chart grid, not a vertical stack. */
+body.graph-focus .layout{display:block;max-width:none}
+body.graph-focus .layout>aside,body.graph-focus .right>section:first-child,body.graph-focus .history-card{display:none!important}
+body.graph-focus .right{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px}
+body.graph-focus .right>section:nth-child(2){grid-column:1/-1;grid-row:1;width:100%}
+body.graph-focus #decard{grid-column:1;grid-row:2}
+body.graph-focus #batchcard{grid-column:2;grid-row:2}
+body.graph-focus #chart{height:clamp(180px,28vh,290px)!important;aspect-ratio:auto}
+body.graph-focus #dechart,body.graph-focus #batchchart{height:clamp(160px,27vh,270px)!important;aspect-ratio:auto}
+@media(max-width:1100px){.layout{grid-template-columns:230px minmax(0,1fr)}.right{grid-template-columns:1fr!important}.right>section:first-child,.right>section:nth-child(2),#decard,#batchcard,.history-card{grid-column:1;grid-row:auto}}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.right{grid-template-columns:repeat(2,minmax(0,1fr))!important}.right>section:first-child{grid-column:1;grid-row:1}.right>section:nth-child(2){grid-column:2;grid-row:1}#decard{grid-column:1;grid-row:2}#batchcard{grid-column:2;grid-row:2}.history-card{grid-column:1/-1;grid-row:3}}
+@media(max-width:620px){.right{grid-template-columns:1fr!important}.right>section:first-child,.right>section:nth-child(2),#decard,#batchcard,.history-card{grid-column:1;grid-row:auto}body.graph-focus .right{grid-template-columns:1fr!important}body.graph-focus #decard:not([hidden]),body.graph-focus #batchcard{grid-column:1;grid-row:auto}}
+
+/* Dashboard polish: no phantom rows or blank grid cells. */
+.right{align-content:start!important;grid-template-rows:max-content max-content!important;align-items:start!important}
+.right>section{align-self:start!important}
+#decard:not([hidden]),#batchcard:not([hidden]){display:block}
+#decard[hidden],#decard:has(#depanel[hidden]),#batchcard:has(#batchpanel[hidden]){display:none!important}
+#decard .chart,#batchcard .chart{max-height:260px!important}
+.csv-compact{grid-column:1/-1;justify-self:start;margin-top:8px;padding:7px 12px;font-size:12px}
+body.graph-focus .right>section:nth-child(3){display:block!important}
+body.graph-focus #decard:not([hidden]){display:block!important;grid-column:1!important;grid-row:2!important}
+body.graph-focus #batchcard{grid-column:2!important;grid-row:2!important}
+body.graph-focus .right{grid-template-rows:max-content max-content!important;align-content:start!important}
+body.graph-focus #dechart,body.graph-focus #batchchart{height:clamp(155px,25dvh,265px)!important}
+@media(max-width:620px){body.graph-focus #decard:not([hidden]),body.graph-focus #batchcard{grid-column:1!important;grid-row:auto!important}}
+</style>
+<script>
+(()=>{const $=id=>document.getElementById(id);let people=[],round=0,history=[],snapshots=[],timer=null,settings={},lastGroups=[];const dice=['','⚀','⚁','⚂','⚃','⚄','⚅'];const rand=n=>Math.floor(Math.random()*n);function shuffle(a){for(let i=a.length-1;i>0;i--){let j=rand(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
+function stop(){clearInterval(timer);timer=null;$('auto').textContent='▷ Auto-play';$('focusauto').textContent='▷ Auto-play'}
+function ended(){const [s,i]=counts();return round>=settings.maxrounds || ($('endrule').value==='S'?s===0:i===0)}
+function counts(){return ['S','I','R'].map(v=>people.filter(p=>p.state===v).length)}
+function record(){const [s,i,r]=counts();history.push({round,s,i,r})}
+function reset(){batchCache=null;lockedHorizon=null;if($('lockaxis'))$('lockaxis').checked=false;stop();let n=Math.max(2,Math.min(240,Math.round(+$('population').value||36)));let size=Math.max(2,Math.min(24,Math.round(+$('size').value||3)));let initial=Math.max(1,Math.min(n,Math.round(+$('initial').value||1)));let faces=Math.max(2,Math.min(20,Math.round(+$('faces').value||6)));settings={n,size,initial,faces,recover:Math.min(faces,+$('recover').value),margin:+$('margin').value,headtohead:$('headtohead').checked,timing:'after',waning:$('waning').checked,immunityfaces:+$('immunityfaces').value,immunitybelow:Math.max(1,Math.min(1+(+$('immunityfaces').value),Math.round(+$('immunitybelow').value||4))),maxrounds:Math.max(1,Math.min(500,Math.round(+$('maxrounds').value||60)))};$('population').value=n;$('size').value=size;$('initial').value=initial;$('faces').value=faces;people=Array.from({length:n},(_,id)=>({id:id+1,state:id<initial?'I':'S',ever:id<initial,roll:0,changed:false}));shuffle(people);round=0;history=[];snapshots=[];lastGroups=[];record();render('New game ready. Press Next round.')}
+function step(){if(ended()||!people.some(p=>p.state==='I')){stop();return}snapshots.push({people:people.map(p=>({...p})),round,history:history.map(h=>({...h})),lastGroups:lastGroups.map(g=>g.slice())});if(snapshots.length>300)snapshots.shift();round++;people.forEach(p=>{p.roll=1+rand(settings.faces);p.changed=false});let order=shuffle(people.slice());lastGroups=[];for(let j=0;j<order.length;j+=settings.size)lastGroups.push(order.slice(j,j+settings.size).map(p=>p.id));let infections=0,recoveries=0,immunityLost=0;for(const ids of lastGroups){const g=ids.map(id=>people.find(p=>p.id===id));const infected=g.filter(p=>p.state==='I');const susceptible=g.filter(p=>p.state==='S');const active=infected;for(const p of susceptible){if(active.some(q=>settings.headtohead?(1+rand(settings.faces))-(1+rand(settings.faces))>=settings.margin:q.roll-p.roll>=settings.margin)){p.next='I';infections++}}for(const p of infected){if(p.roll<=settings.recover){p.next='R';recoveries++}}}if(settings.waning)for(const p of people){if(p.state==='R' && 1+rand(settings.immunityfaces)<settings.immunitybelow){p.next='S';immunityLost++}}people.forEach(p=>{if(p.next){p.changed=true;p.state=p.next;if(p.state==='I')p.ever=true;delete p.next}});record();render(`${infections} new infection${infections===1?'':'s'} · ${recoveries} recover${recoveries===1?'y':'ies'}${settings.waning?' · '+immunityLost+' lost immunity':''}${round>=settings.maxrounds?' · Time limit reached!':''}${counts()[1]===0?' · Outbreak ended!':counts()[0]===0?' · Everyone has been infected!':''}`);if(ended())stop()}
+function render(message){$('round').textContent=round;const [s,i,r]=counts();const finished=ended();const ever=people.filter(p=>p.ever).length;const banner=$('finish');banner.hidden=!finished;if(finished){banner.innerHTML=`<strong>${round>=settings.maxrounds?'⌛ Time limit reached!':i===0?'⚔ The outbreak has ended! ⚔':'⚔ Everyone has been infected! ⚔'}</strong><div class="finish-stats">🦠 ${ever} of ${settings.n} students were infected at some point<br>🛡 ${settings.n-ever} students never got sick</div><span>${round>=settings.maxrounds?'Time limit reached':i===0?'Outbreak ended':'Simulation stopped'} after ${round} rounds · ${((ever)/settings.n*100).toFixed(1)}% ever infected</span>`;} $('s').textContent=s;$('i').textContent=i;$('r').textContent=r;$('total').textContent=people.length;$('message').textContent=message;$('step').disabled=finished||i===0;$('focusstep').disabled=finished||i===0;$('focusround').textContent='Round '+round;$('focuscounts').textContent=`S: ${s} · I: ${i} · R: ${r}`;$('back').disabled=snapshots.length===0;const groups=lastGroups.length?lastGroups:Array.from({length:Math.ceil(people.length/settings.size)},(_,k)=>people.slice(k*settings.size,(k+1)*settings.size).map(p=>p.id));$('groups').innerHTML=groups.map((ids,k)=>`<div class="group compact-group" title="Group ${k+1}">${groups.length>=34?'':`<span class="group-number">${k+1}</span>`}<div class="people">${ids.map(id=>{const p=people.find(x=>x.id===id);return `<span class="person-dot ${p.state.toLowerCase()} ${p.changed?'changed':''}" title="Player #${p.id}: ${p.state==='S'?'Susceptible':p.state==='I'?'Infected':'Recovered'}${p.roll?' · rolled '+p.roll:''}"></span>`}).join('')}</div></div>`).join('');redrawAllCharts();$('history').textContent=history.map(h=>`Round ${h.round}: S ${h.s} · I ${h.i} · R ${h.r}`).join('    |    ')}
+function modelParameters(){const {n,size,faces,recover,margin}=settings;let wins=0;for(let a=1;a<=faces;a++)for(let b=1;b<=faces;b++){if(a-b>=margin)wins++}const p=wins/(faces*faces);const gamma=recover/faces;const beta=(Math.min(size,n)-1)*n/(n-1)*p;return {p,gamma,beta,omega:settings.waning?(settings.immunitybelow-1)/settings.immunityfaces:0}}
+function modelCurve(horizon){const {beta:alpha,gamma:beta,omega}=modelParameters(),n=settings.n;let S=n-settings.initial,I=settings.initial,R=0;const arr=[{s:S,i:I,r:R}];for(let k=1;k<=horizon;k++){const infections=alpha*S*I/n,recoveries=beta*I,waning=omega*R;const nextS=S-infections+waning,nextI=I+infections-recoveries,nextR=R+recoveries-waning;S=nextS;I=nextI;R=nextR;arr.push({s:S,i:I,r:R})}return arr}
+function plotInto(id,modelOnly){const svg=$(id),w=760,h=255,l=43,r=15,t=15,b=34,horizon=sharedHorizon();const x=q=>l+(w-l-r)*q/horizon,y=v=>h-b-(h-t-b)*v/settings.n;let out='';for(let j=0;j<=5;j++){const v=settings.n*j/5;out+=`<line x1="${l}" x2="${w-r}" y1="${y(v)}" y2="${y(v)}" stroke="#cfc0a5"/><text x="${l-8}" y="${y(v)+4}" text-anchor="end" font-size="12" fill="#655342">${Math.round(v)}</text>`}for(let k=0;k<=horizon;k+=Math.max(1,Math.ceil(horizon/10)))out+=`<text x="${x(k)}" y="${h-10}" text-anchor="middle" font-size="12" fill="#655342">${k}</text>`;out+=`<line x1="${l}" x2="${w-r}" y1="${h-b}" y2="${h-b}" stroke="#806e55"/>`;if($('showthreshold').checked){
+ const {beta,gamma}=modelParameters();const critical=beta>0?settings.n*gamma/beta:Infinity;
+ if(Number.isFinite(critical)&&critical>=0&&critical<=settings.n){
+  out+=`<line x1="${l}" x2="${w-r}" y1="${y(critical)}" y2="${y(critical)}" stroke="#159447" stroke-width="2.5" stroke-dasharray="7 4"/><text x="${w-r-5}" y="${Math.max(t+12,y(critical)-6)}" text-anchor="end" fill="#167341" font-size="13" font-weight="bold">S* = ${critical.toFixed(2)}</text>`;
+  const values=modelOnly?modelCurve(horizon):history.slice(0,horizon+1);
+  for(let k=1;k<values.length;k++){
+   if(values[k-1].s>=critical&&values[k].s<=critical&&values[k-1].s!==values[k].s){
+    const cross=(k-1)+(values[k-1].s-critical)/(values[k-1].s-values[k].s);
+    out+=`<line x1="${x(cross)}" x2="${x(cross)}" y1="${t}" y2="${h-b}" stroke="#159447" stroke-width="2" stroke-dasharray="4 4"/><circle cx="${x(cross)}" cy="${y(critical)}" r="5" fill="#159447" stroke="#fff4dc" stroke-width="2"/><text x="${Math.min(w-r-12,x(cross)+7)}" y="${t+14}" fill="#167341" font-size="12" font-weight="bold">between rounds ${k-1} and ${k}</text>`;
+    break;
+   }
+  }
+ }
+}
+const series=[['s','#407bb7'],['i','#bc4545'],['r','#39875b']],data=modelOnly?modelCurve(horizon):history.slice(0,horizon+1);for(const [key,color] of series){out+=`<polyline points="${data.map((q,k)=>`${x(k)},${y(q[key])}`).join(' ')}" fill="none" stroke="${color}" stroke-width="3" stroke-linejoin="round"/>`;for(let k=0;k<data.length;k++)out+=`<circle cx="${x(k)}" cy="${y(data[k][key])}" r="3.5" fill="${color}"><title>Round ${k}: ${key.toUpperCase()} = ${Number(data[k][key]).toFixed(2)}</title></circle>`}svg.innerHTML=out}
+// Exact one-round infection chance for a susceptible, with integer I infected among N-1 others.
+// Random grouping is uniform; each person rolls ONCE, and recovery happens afterward.
+function infectionChanceInteger(I){
+ const {n,size,faces,margin}=settings,m=Math.min(size,n)-1,others=n-1;
+ I=Math.max(0,Math.min(others,Math.round(I)));
+ const choose=(a,b)=>{if(b<0||b>a)return 0;let v=1;for(let j=1;j<=b;j++)v=v*(a-j+1)/j;return v};
+ const denom=choose(others,m);if(!denom)return 0;
+ let probability=0;
+ for(let k=1;k<=Math.min(I,m);k++){
+  const pk=choose(I,k)*choose(others-I,m-k)/denom;
+  let noInfection=0;
+  if(settings.headtohead){noInfection=Math.pow(1-modelParameters().p,k)}else for(let susceptibleRoll=1;susceptibleRoll<=faces;susceptibleRoll++){
+   const maxFail=Math.min(faces,Math.max(0,susceptibleRoll+margin-1));
+   noInfection+=Math.pow(maxFail/faces,k)/faces;
+  }
+  probability+=pk*(1-noInfection);
+ }
+ return Math.max(0,Math.min(1,probability));
+}
+// Linear interpolation allows the mean-field model to use fractional populations.
+function infectionChance(I){const v=Math.max(0,Math.min(settings.n-1,I)),a=Math.floor(v),b=Math.min(settings.n-1,a+1);return infectionChanceInteger(a)+(v-a)*(infectionChanceInteger(b)-infectionChanceInteger(a))}
+function diceDerivedCurve(horizon,discrete=false){
+ const n=settings.n,gamma=settings.recover/settings.faces;
+ let S=n-settings.initial,I=settings.initial,R=0;
+ const result=[{s:S,i:I,r:R}];
+ const rates=(s,i)=>{const infections=Math.max(0,s)*infectionChance(i),recoveries=gamma*Math.max(0,i);return [-infections,infections-recoveries,recoveries]};
+ for(let k=1;k<=horizon;k++){
+  if(discrete){const [ds,di]=rates(S,I);S=Math.max(0,S+ds);I=Math.max(0,I+di);R=n-S-I}
+  else {const dt=1/30;for(let j=0;j<30;j++){
+   const a=rates(S,I),b=rates(S+a[0]*dt/2,I+a[1]*dt/2),c=rates(S+b[0]*dt/2,I+b[1]*dt/2),d=rates(S+c[0]*dt,I+c[1]*dt);
+   S=Math.max(0,S+dt*(a[0]+2*b[0]+2*c[0]+d[0])/6);
+   I=Math.max(0,I+dt*(a[1]+2*b[1]+2*c[1]+d[1])/6);R=n-S-I;
+  }}
+  result.push({s:S,i:I,r:R});
+ }
+ return result;
+}
+let batchCache=null,lockedHorizon=null;
+function sharedHorizon(){
+ const batchEnd=batchCache?Math.max(0,...batchCache.curves.map(c=>c.length-1)):0;
+ return lockedHorizon===null?Math.max(15,history.length-1,batchEnd):lockedHorizon;
+}
+function redrawAllCharts(){drawChart();if(batchCache&&!$('batchpanel').hidden)batchRun(true)}
+function batchRun(redraw=false){
+ const cfg=settings,n=cfg.n,limit=cfg.maxrounds,curves=redraw&&batchCache?batchCache.curves:[],finals=redraw&&batchCache?batchCache.finals:[];
+ if(!redraw||!batchCache)for(let trial=0;trial<50;trial++){
+  const state=Array.from({length:n},(_,j)=>j<cfg.initial?'I':'S');const ever=Array.from({length:n},(_,j)=>j<cfg.initial);
+  const track=[{s:n-cfg.initial,i:cfg.initial,r:0}];
+  for(let k=1;k<=limit;k++){
+   let S=state.filter(v=>v==='S').length,I=state.filter(v=>v==='I').length;
+   if(I===0||( $('endrule').value==='S'&&S===0))break;
+   const rolls=Array.from({length:n},()=>1+rand(cfg.faces));
+   const order=shuffle(Array.from({length:n},(_,j)=>j));
+   const next=state.slice();
+   for(let j=0;j<n;j+=cfg.size){
+    const g=order.slice(j,j+cfg.size),infected=g.filter(id=>state[id]==='I');
+    const active=infected;
+    for(const id of g)if(state[id]==='S'&&active.some(q=>cfg.headtohead?(1+rand(cfg.faces))-(1+rand(cfg.faces))>=cfg.margin:rolls[q]-rolls[id]>=cfg.margin))next[id]='I';
+    for(const id of infected)if(rolls[id]<=cfg.recover)next[id]='R';
+   }
+   if(cfg.waning)for(let j=0;j<n;j++)if(state[j]==='R'&&1+rand(cfg.immunityfaces)<cfg.immunitybelow)next[j]='S';for(let j=0;j<n;j++){state[j]=next[j];if(state[j]==='I')ever[j]=true;}
+   track.push({s:state.filter(v=>v==='S').length,i:state.filter(v=>v==='I').length,r:state.filter(v=>v==='R').length});
+  }
+  finals.push({ever:ever.filter(Boolean).length,rounds:track.length-1});curves.push(track);
+ }
+ batchCache={curves,finals};
+ const horizon=sharedHorizon();
+ const mean=Array.from({length:horizon+1},(_,k)=>({s:0,i:0,r:0}));
+ for(const curve of curves)for(let k=0;k<=horizon;k++){
+  const q=curve[Math.min(k,curve.length-1)];for(const key of ['s','i','r'])mean[k][key]+=q[key]/50;
+ }
+ const w=760,h=255,l=43,r=15,t=15,b=34,x=k=>l+(w-l-r)*k/horizon,y=v=>h-b-(h-t-b)*v/n;
+ let out='';for(let j=0;j<=5;j++){const v=n*j/5;out+=`<line x1="${l}" x2="${w-r}" y1="${y(v)}" y2="${y(v)}" stroke="#cfc0a5"/><text x="${l-8}" y="${y(v)+4}" text-anchor="end" font-size="12" fill="#655342">${Math.round(v)}</text>`}
+ for(let k=0;k<=horizon;k+=Math.max(1,Math.ceil(horizon/10)))out+=`<text x="${x(k)}" y="${h-10}" text-anchor="middle" font-size="12" fill="#655342">${k}</text>`;
+ if($('showthreshold').checked){
+  const {beta,gamma}=modelParameters(),critical=beta>0?n*gamma/beta:Infinity;
+  if(Number.isFinite(critical)&&critical>=0&&critical<=n){
+   out+=`<line x1="${l}" x2="${w-r}" y1="${y(critical)}" y2="${y(critical)}" stroke="#159447" stroke-width="2.5" stroke-dasharray="7 4"/><text x="${w-r-5}" y="${Math.max(t+12,y(critical)-6)}" text-anchor="end" fill="#167341" font-size="13" font-weight="bold">S* = ${critical.toFixed(2)}</text>`;
+   const crossing=(values,color,label)=>{for(let k=1;k<values.length;k++)if(values[k-1].s>=critical&&values[k].s<=critical&&values[k-1].s!==values[k].s){const time=k-1+(values[k-1].s-critical)/(values[k-1].s-values[k].s);out+=`<line x1="${x(time)}" x2="${x(time)}" y1="${t}" y2="${h-b}" stroke="${color}" stroke-width="2" stroke-dasharray="4 4"/><circle cx="${x(time)}" cy="${y(critical)}" r="4" fill="${color}"/><text x="${Math.min(w-r-40,x(time)+5)}" y="${label==='Discrete'?t+13:t+27}" fill="${color}" font-size="11">${label}: ${time.toFixed(1)}</text>`;break;}};
+   crossing(mean,'#167341','Mean');crossing(modelCurve(horizon),'#77518b','Discrete');
+  }
+ }
+ const colors={s:'#407bb7',i:'#bc4545',r:'#39875b'};
+ const keys=$('onlyinfected').checked?['i']:['s','i','r'];
+ // Draw each game across the entire shared time axis. After a game ends,
+ // its final S/I/R counts persist; the ensemble mean uses these same values.
+ // Explicitly extend every stopped run through the common horizon.
+ // Draw an envelope and 50 paths so the average can be visually audited.
+ for(const key of keys){
+  const minValues=[],maxValues=[];
+  for(let k=0;k<=horizon;k++){
+   const vals=curves.map(curve=>curve[Math.min(k,curve.length-1)][key]);
+   minValues.push(Math.min(...vals));maxValues.push(Math.max(...vals));
+  }
+  const upper=maxValues.map((v,k)=>`${x(k)},${y(v)}`).join(' ');
+  const lower=minValues.map((v,k)=>`${x(k)},${y(v)}`).reverse().join(' ');
+  out+=`<polygon points="${upper} ${lower}" fill="${colors[key]}" fill-opacity="0.055"/>`;
+  for(const curve of curves){
+   const pts=Array.from({length:horizon+1},(_,k)=>{const q=curve[Math.min(k,curve.length-1)];return `${x(k)},${y(q[key])}`}).join(' ');
+   out+=`<polyline points="${pts}" fill="none" stroke="${colors[key]}" stroke-width="1.15" stroke-opacity="0.33"/>`;
+  }
+  // Boundaries are especially useful when early-extinction games retain S>0.
+  out+=`<polyline points="${upper}" fill="none" stroke="${colors[key]}" stroke-width="1.3" stroke-opacity="0.65" stroke-dasharray="3 4"/>`;
+  out+=`<polyline points="${minValues.map((v,k)=>`${x(k)},${y(v)}`).join(' ')}" fill="none" stroke="${colors[key]}" stroke-width="1.3" stroke-opacity="0.65" stroke-dasharray="3 4"/>`;
+ }
+ // Sanity check: a pointwise mean must lie inside the range of its games.
+ for(let k=0;k<=horizon;k++)for(const key of ['s','i','r']){
+  const values=curves.map(curve=>curve[Math.min(k,curve.length-1)][key]);
+  if(mean[k][key]<Math.min(...values)-1e-7||mean[k][key]>Math.max(...values)+1e-7)
+   console.error('Ensemble mean outside individual trajectory range',k,key);
+ }
+ const modelSeries=[['classicmodel',modelCurve(horizon),'7 5',2.5]];
+ for(const [toggle,curve,dash,width] of modelSeries)if($(toggle).checked){
+  for(const key of keys)out+=`<polyline points="${curve.slice(0,horizon+1).map((q,k)=>`${x(k)},${y(q[key])}`).join(' ')}" fill="none" stroke="${colors[key]}" stroke-width="${width}" stroke-dasharray="${dash}"/>`;
+ }
+ for(const key of keys)out+=`<polyline points="${mean.map((q,k)=>`${x(k)},${y(q[key])}`).join(' ')}" fill="none" stroke="${colors[key]}" stroke-width="4"/>`;
+ $('batchchart').innerHTML=out;$('batchpanel').hidden=false;drawChart();
+ const avg=finals.reduce((a,b)=>a+b.ever,0)/50;
+ $('batchsummary').textContent=`${cfg.headtohead?'Head-to-head (independent matchup dice)':'One roll per student per round'} · 50 independent games · Average ever infected: ${avg.toFixed(1)} of ${n} (${(100*avg/n).toFixed(1)}%) · Range: ${Math.min(...finals.map(v=>v.ever))}–${Math.max(...finals.map(v=>v.ever))} · Mean epidemic shown in bold. All curves use the same population and time axes.`;
+}
+let sirGraphHidden=true;function drawChart(){const show=!sirGraphHidden;$('depanel').hidden=!show;plotInto('chart',false);if(show)plotInto('dechart',true);const {beta,gamma,omega}=modelParameters();const critical=beta>0?settings.n*gamma/beta:Infinity;$('thresholdinfo').innerHTML=`<strong>${settings.waning?'Discrete SIRS (waning immunity approximation)':'Discrete SIR (approximation)'}</strong> · α = ${beta.toFixed(3)} (transmission) · β = ${gamma.toFixed(3)} (recovery) · ${settings.waning?'ω = '+omega.toFixed(3)+' (immunity loss) · ':''}<strong>S* = ${Number.isFinite(critical)?critical.toFixed(2):'∞'}</strong> susceptible students<br><span style="font-weight:400">Sₙ₊₁ = Sₙ − αSₙIₙ/N${settings.waning?' + ωRₙ':''}, Iₙ₊₁ = Iₙ + αSₙIₙ/N − βIₙ, Rₙ₊₁ = Rₙ + βIₙ${settings.waning?' − ωRₙ':''}. α ≈ (group size − 1) × P(infected wins one matchup) × N/(N−1); β = P(recovery). Above S*, the recurrence predicts I increases; below it, I decreases. This recurrence counts successful matchups rather than distinct new cases. It can even predict impossible negative populations for some settings; those values are intentionally not corrected.</span>`;}
+function setSIRVisible(visible){sirGraphHidden=!visible;$('decard').hidden=!visible;$('togglede').textContent='Hide SIR graph';$('showsir').hidden=visible;$('showsir').setAttribute('aria-expanded',String(visible));drawChart();if(visible)requestAnimationFrame(()=>plotInto('dechart',true));}
+$('togglede').addEventListener('click',()=>setSIRVisible(false));$('showsir').addEventListener('click',()=>setSIRVisible(true));setSIRVisible(false);for(const id of ['classicmodel','onlyinfected'])$(id).addEventListener('change',()=>{if(batchCache)batchRun(true)});$('batch').addEventListener('click',()=>batchRun());$('hidebatch').addEventListener('click',()=>{$('batchpanel').hidden=true;drawChart()});$('focus').addEventListener('click',()=>{document.body.classList.toggle('graph-focus');$('batchsummary').hidden=document.body.classList.contains('graph-focus');$('focus').textContent=document.body.classList.contains('graph-focus')?'↙ Return to controls':'⛶ Enlarge graphs';if(document.body.classList.contains('graph-focus'))$('model').checked=true;['chart','dechart'].forEach(id=>$(id).setAttribute('preserveAspectRatio',document.body.classList.contains('graph-focus')?'none':'xMidYMid meet'));drawChart()});$('focusstep').addEventListener('click',step);$('focusauto').addEventListener('click',()=>$('auto').click());$('endrule').addEventListener('change',()=>{if(ended())stop();render(ended()?'Stopping condition reached.': 'Stopping rule updated. Continue playing.')});$('model').addEventListener('change',drawChart);$('showthreshold').addEventListener('change',redrawAllCharts);$('lockaxis').addEventListener('change',()=>{lockedHorizon=$('lockaxis').checked?sharedHorizon():null;redrawAllCharts()});$('headtohead').addEventListener('change',reset);$('waning').addEventListener('change',()=>{$('immunitycontrols').hidden=!$('waning').checked;if($('waning').checked&&$('endrule').value==='S')$('endrule').value='I';reset()});for(const id of ['immunityfaces','immunitybelow','maxrounds'])$(id).addEventListener('change',()=>{if(id==='immunityfaces')$('immunitybelow').max=1+(+$('immunityfaces').value);$('immunityrate').textContent='Chance per round: '+(100*Math.max(0,Math.min(+$('immunityfaces').value,+$('immunitybelow').value-1))/(+$('immunityfaces').value)).toFixed(1)+'%';reset()});$('reset').addEventListener('click',reset);$('step').addEventListener('click',step);$('back').addEventListener('click',()=>{stop();let q=snapshots.pop();if(!q)return;people=q.people;round=q.round;history=q.history;lastGroups=q.lastGroups;render('Undid the previous round.')});$('auto').addEventListener('click',()=>{if(timer){stop();return}if(ended()||!counts()[1])return;timer=setInterval(step,1000/Number($('speed').value));$('auto').textContent='Ⅱ Pause';$('focusauto').textContent='Ⅱ Pause'});$('speed').addEventListener('input',()=>{$('speedout').textContent=$('speed').value+' rounds/sec';if(timer){stop();timer=setInterval(step,1000/Number($('speed').value));$('auto').textContent='Ⅱ Pause';$('focusauto').textContent='Ⅱ Pause'}});$('csv').addEventListener('click',()=>{const csv='Round,Susceptible,Infected,Recovered\n'+history.map(h=>`${h.round},${h.s},${h.i},${h.r}`).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='diseases-and-dice.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)});reset()})();
+</script>
+<style>
+/* Keep the lower comparison plots aligned even when the ensemble has extra controls. */
+@media (min-width:621px){
+  #decard .chart, #batchcard .chart {height:220px!important;max-height:none!important;aspect-ratio:auto!important;}
+  body.graph-focus #decard .chart,body.graph-focus #batchcard .chart {height:clamp(155px,25dvh,265px)!important;}
+}
+#decard[hidden]{display:none!important}
+body.graph-focus .right:has(#decard[hidden]) #batchcard{grid-column:1/-1!important;grid-row:2!important}
+</style>
+</html><style>
+/* Give the individual epidemic plot the available dashboard width when it is
+   the only visible plot; return to the normal grid as soon as another appears. */
+.right:has(#depanel[hidden]):has(#batchpanel[hidden]) > section:nth-child(2){
+  grid-column:2 / -1 !important;
+  grid-row:1 !important;
+}
+.right:has(#depanel[hidden]):has(#batchpanel[hidden]) #chart{
+  width:100%;
+  height:clamp(330px,48vw,600px) !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+}
+body.graph-focus .right:has(#depanel[hidden]):has(#batchpanel[hidden]) > section:nth-child(2){
+  grid-column:1 / -1 !important;
+}
+body.graph-focus .right:has(#depanel[hidden]):has(#batchpanel[hidden]) #chart{
+  height:clamp(360px,65vh,720px) !important;
+}
+@media(max-width:1100px){
+  body:not(.graph-focus) .right:has(#depanel[hidden]):has(#batchpanel[hidden]) > section:nth-child(2){grid-column:1 / -1 !important;grid-row:auto !important}
+}
+@media(max-width:620px){
+  .right:has(#depanel[hidden]):has(#batchpanel[hidden]) #chart{height:clamp(250px,65vw,440px) !important}
+}
+</style>
+<style>
+/* Solo-plot layout: seating chart above a genuinely full-width simulation plot. */
+body:not(.graph-focus) .right:has(#depanel[hidden]):has(#batchpanel[hidden]) > section:nth-child(2){
+  grid-column:1 / -1 !important;
+  grid-row:2 !important;
+  width:100%;
+}
+body:not(.graph-focus) .right:has(#depanel[hidden]):has(#batchpanel[hidden]) > section:first-child{
+  grid-column:1 / -1 !important;
+  grid-row:1 !important;
+}
+body:not(.graph-focus) .right:has(#depanel[hidden]):has(#batchpanel[hidden]) #chart{
+  display:block;width:100%!important;height:clamp(290px,31vw,430px)!important;
+  max-height:none!important;aspect-ratio:auto!important;
+}
+body.graph-focus .right:has(#depanel[hidden]):has(#batchpanel[hidden]) > section:nth-child(2){grid-column:1 / -1!important;grid-row:1!important}
+@media(max-width:620px){body:not(.graph-focus) .right:has(#depanel[hidden]):has(#batchpanel[hidden]) #chart{height:clamp(230px,58vw,360px)!important}}
+</style>
+<script>
+/* Let the SVG fill its wider plotting rectangle instead of letterboxing. */
+(()=>{
+ const chart=document.getElementById('chart');
+ const right=document.querySelector('.right');
+ const de=document.getElementById('depanel');
+ const batch=document.getElementById('batchpanel');
+ if(!chart||!right||!de||!batch)return;
+ function sync(){
+   const solo=de.hidden&&batch.hidden;
+   chart.setAttribute('preserveAspectRatio',solo?'none':(document.body.classList.contains('graph-focus')?'none':'xMidYMid meet'));
+ }
+ new MutationObserver(sync).observe(de,{attributes:true,attributeFilter:['hidden']});
+ new MutationObserver(sync).observe(batch,{attributes:true,attributeFilter:['hidden']});
+ sync();
+})();
+</script>
+
+<style>.immunity-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.immunity-controls{padding:7px;border:1px solid #bba47d;border-radius:5px;background:#eadbb9}.immunity-controls[hidden]{display:none!important}.immunity-controls label{margin-top:3px!important}.immunity-controls .note{margin-top:5px}.controls input[type=checkbox]{width:auto}</style>
+
+<style>
+/* Compact controls: keep the full simulation and its buttons visible at laptop heights. */
+.layout{grid-template-columns:minmax(230px,270px) minmax(0,1fr);gap:10px}
+body{padding:9px}
+.layout>aside.panel{padding:10px 11px}
+.layout>aside h1{font-size:1.65rem;line-height:1.05;margin:0 0 8px}
+.controls{column-gap:8px;row-gap:1px}
+.controls label{font-size:11.5px;margin:5px 0 2px;line-height:1.15}
+.controls input:not([type=checkbox]):not([type=range]),.controls select{padding:5px 6px;font-size:12.5px;height:32px}
+.controls .checkrow{margin:4px 0;gap:6px;line-height:1.2;font-size:12px}
+.controls .checkrow input{margin:0;flex:none}
+.controls .buttons{margin-top:6px;gap:5px}
+.controls .buttons button{padding:7px 4px;font-size:12px;min-height:34px}
+.controls input[type=range]{padding:0;margin:2px 0 0;height:18px}
+#speedout{font-size:11px;display:block;margin-top:0}
+.maxrounds-field,.endrule-field{min-width:0}
+.endrule-field select{font-size:11px!important}
+.immunity-controls{padding:5px!important}
+.immunity-controls .note{font-size:10px;line-height:1.1;margin-top:2px!important}
+.immunity-grid{gap:5px!important}
+.immunity-grid label{font-size:10.5px}
+#csv{margin-top:6px;padding:6px 8px;font-size:11.5px;justify-self:start}
+@media(max-width:850px){.layout{grid-template-columns:1fr}}
+</style>
+<style>
+/* Presentation mode: a lone lower comparison graph gets the entire row,
+   matching the width and plot height of the individual-game graph above. */
+body.graph-focus .right:has(#decard:not([hidden])):has(#batchpanel[hidden]) #decard,
+body.graph-focus .right:has(#decard[hidden]):has(#batchpanel:not([hidden])) #batchcard {
+  grid-column:1 / -1 !important;
+  grid-row:2 !important;
+  width:100% !important;
+  min-width:0 !important;
+}
+body.graph-focus .right:has(#decard:not([hidden])):has(#batchpanel[hidden]) #dechart,
+body.graph-focus .right:has(#decard[hidden]):has(#batchpanel:not([hidden])) #batchchart {
+  display:block !important;
+  width:100% !important;
+  height:clamp(180px,28vh,290px) !important;
+  max-height:none !important;
+  aspect-ratio:auto !important;
+}
+/* When both comparisons are visible, restore the paired half-width layout. */
+body.graph-focus .right:has(#decard:not([hidden])):has(#batchpanel:not([hidden])) #decard {
+  grid-column:1 !important;
+}
+body.graph-focus .right:has(#decard:not([hidden])):has(#batchpanel:not([hidden])) #batchcard {
+  grid-column:2 !important;
+}
+</style>
+<script>
+/* Prevent the original SVG viewBox from letterboxing the full-width solo plot. */
+(()=>{
+ const de=document.getElementById('decard'), batch=document.getElementById('batchpanel');
+ const deSvg=document.getElementById('dechart'), batchSvg=document.getElementById('batchchart');
+ if(!de||!batch||!deSvg||!batchSvg)return;
+ function update(){
+  const focus=document.body.classList.contains('graph-focus');
+  deSvg.setAttribute('preserveAspectRatio',focus&&!de.hidden&&batch.hidden?'none':'xMidYMid meet');
+  batchSvg.setAttribute('preserveAspectRatio',focus&&de.hidden&&!batch.hidden?'none':'xMidYMid meet');
+ }
+ new MutationObserver(update).observe(de,{attributes:true,attributeFilter:['hidden']});
+ new MutationObserver(update).observe(batch,{attributes:true,attributeFilter:['hidden']});
+ new MutationObserver(update).observe(document.body,{attributes:true,attributeFilter:['class']});
+ update();
+})();
+</script>
+
+<style>
+/* Plot must be visible in the normal dashboard as well as enlarged mode.
+   Earlier alignment padding could push the entire plot out of its card. */
+#depanel {padding-top:0!important;display:block;}
+#depanel[hidden]{display:none!important;}
+#decard #dechart {display:block!important;visibility:visible!important;opacity:1!important;width:100%!important;min-height:195px;}
+#decard {overflow:visible;}
+</style>
+<style>
+/* Keep the expanded individual (discrete) graph inside the visible dashboard
+   when the discrete SIR panel is hidden. Width remains fully responsive. */
+body:not(.graph-focus) .right:has(#depanel[hidden]) > section:nth-child(2) {
+  min-width:0;
+  max-width:100%;
+}
+body:not(.graph-focus) .right:has(#depanel[hidden]) #chart {
+  display:block!important;
+  width:100%!important;
+  height:clamp(205px,30dvh,310px)!important;
+  max-height:310px!important;
+  aspect-ratio:auto!important;
+}
+/* If the 50-game panel is also hidden, keep the same screen-friendly height. */
+body:not(.graph-focus) .right:has(#depanel[hidden]):has(#batchpanel[hidden]) #chart {
+  height:clamp(215px,34dvh,335px)!important;
+  max-height:335px!important;
+}
+@media(max-height:740px){
+  body:not(.graph-focus) .right:has(#depanel[hidden]) #chart{
+    height:clamp(175px,27dvh,240px)!important;
+  }
+}
+</style>
