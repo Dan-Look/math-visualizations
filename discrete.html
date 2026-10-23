@@ -128,9 +128,9 @@ body.graph-focus #chart,body.graph-focus #dechart{
 <div class="maxrounds-field"><label for="maxrounds">Maximum rounds</label><input id="maxrounds" type="number" min="1" max="500" value="60"></div>
 <div class="endrule-field"><label for="endrule">Stop game when…</label><select id="endrule"><option value="I">No infected students remain (I = 0)</option><option value="S">No susceptible students remain (S = 0)</option></select></div>
 <div class="full buttons"><button class="primary" id="reset">↻ New game</button><button class="primary" id="step">▶ Next round</button><button id="auto">▷ Auto-play</button><button id="back">↶ Undo</button></div>
-<div class="full"><label for="speed">Auto-play speed</label><input id="speed" type="range" min=".5" max="8" step=".5" value="2"><output id="speedout">2 rounds/sec</output></div>
+<div class="full"><label for="speed">Auto-play speed</label><input id="speed" type="range" min=".5" max="8" step=".5" value="2"><output id="speedout" hidden aria-hidden="true"></output></div>
 </div></aside>
-<main class="right"><section class="panel"><div class="top"><h2 style="margin:0;font-size:20px">Round <span id="round">0</span></h2><div class="legend"><span><i class="dot" style="background:#5e93cf"></i>Susceptible</span><span><i class="dot" style="background:#dc6262"></i>Infected</span><span><i class="dot" style="background:#56a27c"></i>Recovered</span><span>🟨 Changed this round</span></div></div><div class="stats"><div class="stat s">Susceptible<strong id="s">35</strong></div><div class="stat i">Infected<strong id="i">1</strong></div><div class="stat r">Recovered<strong id="r">0</strong></div><div class="stat t">Total<strong id="total">36</strong></div></div><div class="message" id="message" aria-live="polite">Press Next round to shuffle groups and roll.</div><div id="finish" class="finish-banner" hidden aria-live="polite"></div><div class="rounds" id="groups"></div></section>
+<main class="right"><section class="panel"><div class="top"><h2 style="margin:0;font-size:20px">Round <span id="round">0</span></h2><div class="legend"><span><i class="dot" style="background:#5e93cf"></i>Susceptible</span><span><i class="dot" style="background:#dc6262"></i>Infected</span><span><i class="dot" style="background:#56a27c"></i>Recovered</span><span><i class="dot" style="background:transparent;border:2px solid #bd8a25;border-radius:50%"></i>Gold outline = changed this round</span></div></div><div class="stats"><div class="stat s">Susceptible<strong id="s">35</strong></div><div class="stat i">Infected<strong id="i">1</strong></div><div class="stat r">Recovered<strong id="r">0</strong></div><div class="stat t">Total<strong id="total">36</strong></div></div><div class="message" id="message" aria-live="polite">Press Next round to shuffle groups and roll.</div><div id="finish" class="finish-banner" hidden aria-live="polite"></div><div class="rounds" id="groups"></div></section>
 <section class="panel"><div class="top"><h2 style="font-size:18px;margin:0">Epidemic over time</h2><div class="graph-actions"><label class="checkrow"><input id="model" type="checkbox"> Show discrete model below</label><button type="button" id="batch">🎲 Run 50 games</button><button type="button" id="focus">⛶ Enlarge graphs</button></div></div><div class="focus-controls"><button type="button" id="focusstep">▶ Next round</button><button type="button" id="focusauto">▷ Auto-play</button><span id="focusround">Round 0</span><span id="focuscounts"></span></div><div class="chartkey">Solid lines = random dice simulation</div><label class="checkrow" style="margin:3px 0 5px"><input id="showthreshold" type="checkbox"> Show threshold and crossing lines</label> <label class="checkrow" style="margin:3px 0 5px"><input id="lockaxis" type="checkbox"> Lock shared time axis</label><svg class="chart" id="chart" viewBox="0 0 760 240" role="img" aria-label="Line chart of susceptible, infected, and recovered students by round"></svg><div class="modelbox" id="thresholdinfo"></div><div id="depanel" hidden><div class="chartkey">SIR recurrence relations · same axes and scale</div><svg class="chart" id="dechart" viewBox="0 0 760 255" role="img" aria-label="SIR differential equation solution curves"></svg></div><div id="batchpanel" hidden><div class="top"><h3 style="margin:10px 0 4px;font-size:17px">50-game ensemble</h3><button type="button" id="hidebatch">Hide 50-game plot</button></div><div class="chartkey">Faint: individual games · Thick: 50-game mean · Dashed: discrete SIR prediction</div><div class="model-toggles"><label><input type="checkbox" id="classicmodel" checked> Discrete SIR prediction (dashed)</label><label><input type="checkbox" id="onlyinfected"> Infected curves only</label></div><svg class="chart" id="batchchart" viewBox="0 0 760 255" role="img" aria-label="Fifty simulated SIR trajectories and their average"></svg><div id="batchsummary" class="modelbox"></div></div></section>
 <section class="panel"><div class="top"><h2 style="font-size:18px;margin:0">Round-by-round totals</h2><button id="csv">Export CSV</button></div><div id="history" class="note" style="margin-top:8px"></div></section></main></div>
 <script>
@@ -157,6 +157,7 @@ body.graph-focus #chart,body.graph-focus #dechart{
  const reveal=document.createElement('button');reveal.type='button';reveal.id='showsir';reveal.textContent='Show SIR graph';action.insertBefore(reveal,action.firstChild);
  const deLabel=de.querySelector('.chartkey');if(deLabel)deLabel.remove();
  const batchTitle=batch.querySelector('h3');if(batchTitle)batchTitle.textContent='50-game ensemble';
+ const crossedBadge=document.createElement('span');crossedBadge.id='ensemble-crossed-count';crossedBadge.className='ensemble-crossed-badge';crossedBadge.textContent='Crossed S* : —/50';batch.querySelector('.top').appendChild(crossedBadge);
  const hist=right.querySelector('section:last-child');hist.classList.add('history-card');
  const csv=document.getElementById('csv');csv.textContent='↓ Export CSV';csv.classList.add('csv-compact');document.querySelector('.controls').appendChild(csv);hist.remove();
 })();
@@ -224,7 +225,7 @@ function stop(){clearInterval(timer);timer=null;$('auto').textContent='▷ Auto-
 function ended(){const [s,i]=counts();return round>=settings.maxrounds || ($('endrule').value==='S'?s===0:i===0)}
 function counts(){return ['S','I','R'].map(v=>people.filter(p=>p.state===v).length)}
 function record(){const [s,i,r]=counts();history.push({round,s,i,r})}
-function reset(){batchCache=null;lockedHorizon=null;if($('lockaxis'))$('lockaxis').checked=false;stop();let n=Math.max(2,Math.min(240,Math.round(+$('population').value||36)));let size=Math.max(2,Math.min(24,Math.round(+$('size').value||3)));let initial=Math.max(1,Math.min(n,Math.round(+$('initial').value||1)));let faces=Math.max(2,Math.min(20,Math.round(+$('faces').value||6)));settings={n,size,initial,faces,recover:Math.min(faces,+$('recover').value),margin:+$('margin').value,headtohead:$('headtohead').checked,timing:'after',waning:$('waning').checked,immunityfaces:+$('immunityfaces').value,immunitybelow:Math.max(1,Math.min(1+(+$('immunityfaces').value),Math.round(+$('immunitybelow').value||4))),maxrounds:Math.max(1,Math.min(500,Math.round(+$('maxrounds').value||60)))};$('population').value=n;$('size').value=size;$('initial').value=initial;$('faces').value=faces;people=Array.from({length:n},(_,id)=>({id:id+1,state:id<initial?'I':'S',ever:id<initial,roll:0,changed:false}));shuffle(people);round=0;history=[];snapshots=[];lastGroups=[];record();render('New game ready. Press Next round.')}
+function reset(){const priorHorizon=sharedHorizon();const axisFields=['population','size','initial','faces','recover','margin','headtohead','waning','immunityfaces','immunitybelow','maxrounds'];const signature=axisFields.map(id=>$(id).value+':'+$(id).checked).join('|');const preserveAxis=Boolean(settings.n)&&signature===reset.lastSignature;reset.lastSignature=signature;batchCache=null;lockedHorizon=null;stop();let n=Math.max(2,Math.min(240,Math.round(+$('population').value||36)));let size=Math.max(2,Math.min(24,Math.round(+$('size').value||3)));let initial=Math.max(1,Math.min(n,Math.round(+$('initial').value||1)));let faces=Math.max(2,Math.min(20,Math.round(+$('faces').value||6)));settings={n,size,initial,faces,recover:Math.min(faces,+$('recover').value),margin:+$('margin').value,headtohead:$('headtohead').checked,timing:'after',waning:$('waning').checked,immunityfaces:+$('immunityfaces').value,immunitybelow:Math.max(1,Math.min(1+(+$('immunityfaces').value),Math.round(+$('immunitybelow').value||4))),maxrounds:Math.max(1,Math.min(500,Math.round(+$('maxrounds').value||60)))};$('population').value=n;$('size').value=size;$('initial').value=initial;$('faces').value=faces;people=Array.from({length:n},(_,id)=>({id:id+1,state:id<initial?'I':'S',ever:id<initial,roll:0,changed:false}));shuffle(people);round=0;history=[];snapshots=[];lastGroups=[];record();render('New game ready. Press Next round.')}
 function step(){if(ended()||!people.some(p=>p.state==='I')){stop();return}snapshots.push({people:people.map(p=>({...p})),round,history:history.map(h=>({...h})),lastGroups:lastGroups.map(g=>g.slice())});if(snapshots.length>300)snapshots.shift();round++;people.forEach(p=>{p.roll=1+rand(settings.faces);p.changed=false});let order=shuffle(people.slice());lastGroups=[];for(let j=0;j<order.length;j+=settings.size)lastGroups.push(order.slice(j,j+settings.size).map(p=>p.id));let infections=0,recoveries=0,immunityLost=0;for(const ids of lastGroups){const g=ids.map(id=>people.find(p=>p.id===id));const infected=g.filter(p=>p.state==='I');const susceptible=g.filter(p=>p.state==='S');const active=infected;for(const p of susceptible){if(active.some(q=>settings.headtohead?(1+rand(settings.faces))-(1+rand(settings.faces))>=settings.margin:q.roll-p.roll>=settings.margin)){p.next='I';infections++}}for(const p of infected){if(p.roll<=settings.recover){p.next='R';recoveries++}}}if(settings.waning)for(const p of people){if(p.state==='R' && 1+rand(settings.immunityfaces)<settings.immunitybelow){p.next='S';immunityLost++}}people.forEach(p=>{if(p.next){p.changed=true;p.state=p.next;if(p.state==='I')p.ever=true;delete p.next}});record();render(`${infections} new infection${infections===1?'':'s'} · ${recoveries} recover${recoveries===1?'y':'ies'}${settings.waning?' · '+immunityLost+' lost immunity':''}${round>=settings.maxrounds?' · Time limit reached!':''}${counts()[1]===0?' · Outbreak ended!':counts()[0]===0?' · Everyone has been infected!':''}`);if(ended())stop()}
 function render(message){$('round').textContent=round;const [s,i,r]=counts();const finished=ended();const ever=people.filter(p=>p.ever).length;const banner=$('finish');banner.hidden=!finished;if(finished){banner.innerHTML=`<strong>${round>=settings.maxrounds?'⌛ Time limit reached!':i===0?'⚔ The outbreak has ended! ⚔':'⚔ Everyone has been infected! ⚔'}</strong><div class="finish-stats">🦠 ${ever} of ${settings.n} students were infected at some point<br>🛡 ${settings.n-ever} students never got sick</div><span>${round>=settings.maxrounds?'Time limit reached':i===0?'Outbreak ended':'Simulation stopped'} after ${round} rounds · ${((ever)/settings.n*100).toFixed(1)}% ever infected</span>`;} $('s').textContent=s;$('i').textContent=i;$('r').textContent=r;$('total').textContent=people.length;$('message').textContent=message;$('step').disabled=finished||i===0;$('focusstep').disabled=finished||i===0;$('focusround').textContent='Round '+round;$('focuscounts').textContent=`S: ${s} · I: ${i} · R: ${r}`;$('back').disabled=snapshots.length===0;const groups=lastGroups.length?lastGroups:Array.from({length:Math.ceil(people.length/settings.size)},(_,k)=>people.slice(k*settings.size,(k+1)*settings.size).map(p=>p.id));$('groups').innerHTML=groups.map((ids,k)=>`<div class="group compact-group" title="Group ${k+1}">${groups.length>=34?'':`<span class="group-number">${k+1}</span>`}<div class="people">${ids.map(id=>{const p=people.find(x=>x.id===id);return `<span class="person-dot ${p.state.toLowerCase()} ${p.changed?'changed':''}" title="Player #${p.id}: ${p.state==='S'?'Susceptible':p.state==='I'?'Infected':'Recovered'}${p.roll?' · rolled '+p.roll:''}"></span>`}).join('')}</div></div>`).join('');redrawAllCharts();$('history').textContent=history.map(h=>`Round ${h.round}: S ${h.s} · I ${h.i} · R ${h.r}`).join('    |    ')}
 function modelParameters(){const {n,size,faces,recover,margin}=settings;let wins=0;for(let a=1;a<=faces;a++)for(let b=1;b<=faces;b++){if(a-b>=margin)wins++}const p=wins/(faces*faces);const gamma=recover/faces;const beta=(Math.min(size,n)-1)*n/(n-1)*p;return {p,gamma,beta,omega:settings.waning?(settings.immunitybelow-1)/settings.immunityfaces:0}}
@@ -282,9 +283,25 @@ function diceDerivedCurve(horizon,discrete=false){
  return result;
 }
 let batchCache=null,lockedHorizon=null;
+function lastPopulationChange(curve){
+ // Ignore rounds in which the population counts did not change.
+ // This also ignores trailing rounds after an epidemic has ended.
+ let last=0;
+ for(let k=1;k<curve.length;k++){
+  const a=curve[k-1],b=curve[k];
+  if(a.s!==b.s||a.i!==b.i||a.r!==b.r)last=k;
+ }
+ return last;
+}
 function sharedHorizon(){
- const batchEnd=batchCache?Math.max(0,...batchCache.curves.map(c=>c.length-1)):0;
- return lockedHorizon===null?Math.max(15,history.length-1,batchEnd):lockedHorizon;
+ const manual=Number(document.getElementById('axis-max')?.value);
+ if(manual>0)return Math.max(1,manual);
+ const gameEnd=lastPopulationChange(history);
+ // The 75th percentile avoids stretching all graphs for a rare long run.
+ const ends=batchCache?batchCache.curves.map(lastPopulationChange).sort((a,b)=>a-b):[];
+ const ensembleEnd=ends.length?ends[Math.ceil(.75*ends.length)-1]:0;
+ // Keep the current game fully visible and add a short buffer.
+ return 5*Math.ceil((Math.max(1,gameEnd,ensembleEnd)+4)/5);
 }
 function redrawAllCharts(){drawChart();if(batchCache&&!$('batchpanel').hidden)batchRun(true)}
 function batchRun(redraw=false){
@@ -361,6 +378,12 @@ function batchRun(redraw=false){
  }
  for(const key of keys)out+=`<polyline points="${mean.map((q,k)=>`${x(k)},${y(q[key])}`).join(' ')}" fill="none" stroke="${colors[key]}" stroke-width="4"/>`;
  $('batchchart').innerHTML=out;$('batchpanel').hidden=false;drawChart();
+ // Count individual simulated games (not the ensemble mean or model prediction).
+ const {beta:transmission,gamma:recovery}=modelParameters();
+ const crossingThreshold=transmission>0?n*recovery/transmission:Infinity;
+ const crossedCount=Number.isFinite(crossingThreshold)?curves.filter(curve=>curve.some(point=>point.s<=crossingThreshold+1e-9)).length:0;
+ const crossedBadge=document.getElementById('ensemble-crossed-count');
+ if(crossedBadge)crossedBadge.textContent=Number.isFinite(crossingThreshold)?`Crossed S* : ${crossedCount}/50`:'Crossed S* : n/a';
  const avg=finals.reduce((a,b)=>a+b.ever,0)/50;
  $('batchsummary').textContent=`${cfg.headtohead?'Head-to-head (independent matchup dice)':'One roll per student per round'} · 50 independent games · Average ever infected: ${avg.toFixed(1)} of ${n} (${(100*avg/n).toFixed(1)}%) · Range: ${Math.min(...finals.map(v=>v.ever))}–${Math.max(...finals.map(v=>v.ever))} · Mean epidemic shown in bold. All curves use the same population and time axes.`;
 }
@@ -377,6 +400,34 @@ $('togglede').addEventListener('click',()=>setSIRVisible(false));$('showsir').ad
 #decard[hidden]{display:none!important}
 body.graph-focus .right:has(#decard[hidden]) #batchcard{grid-column:1/-1!important;grid-row:2!important}
 </style>
+
+<!-- One shared threshold/crossing setting, accessible from every analysis graph. -->
+<style id="threshold-all-graphs-style">
+body.graph-focus .shared-threshold-label {display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#4c3527;white-space:nowrap;margin:2px 0 4px;cursor:pointer;flex-shrink:0}
+body:not(.graph-focus) .shared-threshold-label {display:none!important}
+.shared-threshold-label input {accent-color:#77372f;margin:0}
+</style>
+<script id="threshold-all-graphs-script">
+(()=>{
+ const master=document.getElementById('showthreshold');
+ const sir=document.getElementById('decard');
+ const ensemble=document.getElementById('batchpanel');
+ if(!master||!sir||!ensemble)return;
+ const labels=[];
+ // Keep the original checkbox and put matching controls in both other cards.
+ for(const [host,position] of [[sir.querySelector('.top'),'afterend'],[ensemble.querySelector('.model-toggles'),'beforebegin']]){
+   const label=document.createElement('label');label.className='shared-threshold-label';
+   const input=document.createElement('input');input.type='checkbox';
+   label.append(input,document.createTextNode('Show threshold and crossing lines'));
+   host.insertAdjacentElement(position,label);
+   input.addEventListener('change',()=>{master.checked=input.checked;master.dispatchEvent(new Event('change',{bubbles:true}));});
+   labels.push(input);
+ }
+ function sync(){labels.forEach(input=>input.checked=master.checked)}
+ master.addEventListener('change',sync);
+ sync();
+})();
+</script>
 </html><style>
 /* Give the individual epidemic plot the available dashboard width when it is
    the only visible plot; return to the normal grid as soon as another appears. */
@@ -435,6 +486,16 @@ body.graph-focus .right:has(#depanel[hidden]):has(#batchpanel[hidden]) > section
  }
  new MutationObserver(sync).observe(de,{attributes:true,attributeFilter:['hidden']});
  new MutationObserver(sync).observe(batch,{attributes:true,attributeFilter:['hidden']});
+ // Apply changed game parameters while presenting; existing simulator reset keeps the rules consistent.
+ const gameFields=['population','size','initial','faces','recover','margin'];
+ gameFields.forEach(id=>$(id).addEventListener('change',()=>{if(document.body.classList.contains('graph-focus')){$('reset').click();}}));
+ // Existing reset logic handles recovery, immunity, and maximum rounds. Refresh the ensemble afterward.
+ ['recover','margin','population','size','initial','faces','headtohead','waning','immunityfaces','immunitybelow','maxrounds'].forEach(id=>{
+  if(gameFields.includes(id))return;
+  $(id).addEventListener('change',()=>{if(document.body.classList.contains('graph-focus'))void 0});
+ });
+ $('reset').addEventListener('click',()=>{if(document.body.classList.contains('graph-focus'))void 0});
+ // Ensemble button is hidden in Game Mode; analysis automatically supplies its curves.
  sync();
 })();
 </script>
@@ -542,3 +603,483 @@ body:not(.graph-focus) .right:has(#depanel[hidden]):has(#batchpanel[hidden]) #ch
   }
 }
 </style>
+<style id="new-layout">
+/* Game dashboard and three-row presentation comparison */
+body:not(.graph-focus) #decard,body:not(.graph-focus) #batchcard{display:none!important}
+body:not(.graph-focus) .right{display:flex!important;flex-direction:column}
+body:not(.graph-focus) .right>section:first-child,body:not(.graph-focus) .right>section:nth-child(2){width:100%!important}
+body.graph-focus .right{display:flex!important;flex-direction:column;gap:5px!important;padding-left:280px}
+body.graph-focus .right>section:nth-child(2),body.graph-focus #decard,body.graph-focus #batchcard{width:100%!important;grid-column:auto!important;grid-row:auto!important;margin:0!important;padding:5px 9px!important}
+body.graph-focus #chart,body.graph-focus #dechart,body.graph-focus #batchchart,body.graph-focus #decard .chart,body.graph-focus #batchcard .chart{height:clamp(105px,21dvh,205px)!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important}
+body.graph-focus #decard[hidden],body.graph-focus #batchcard[hidden]{display:none!important}
+body.graph-focus .right>section:nth-child(2)[hidden]{display:none!important}
+body.graph-focus #batchpanel[hidden]{display:none!important}
+body.graph-focus #depanel[hidden]{display:none!important}
+body.graph-focus #decard:not([hidden]),body.graph-focus #batchcard:not([hidden]){display:block!important}
+body.graph-focus .layout>aside{display:block!important;position:fixed;left:9px;top:9px;width:270px;z-index:3;max-height:calc(100dvh - 18px);overflow:auto}
+body.graph-focus .layout>aside .controls{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px 6px}
+body.graph-focus .layout>aside h1{font-size:1.2rem}body.graph-focus .layout>aside .controls label{font-size:11px}body.graph-focus .layout>aside .controls .full{grid-column:1/-1}
+body.graph-focus .focus-controls{display:flex}
+body.graph-focus #thresholdinfo{display:none}
+body.graph-focus .right .chartkey{font-size:11px}
+body.graph-focus #batchpanel .model-toggles{margin:0}
+body.graph-focus .dashboard-graph-tools{margin:0}
+@media(max-width:700px){body.graph-focus .right{padding-left:0}body.graph-focus .layout>aside{position:relative;width:auto;left:auto;top:auto;max-height:none;margin-bottom:8px}}
+</style>
+<script id="new-layout-script">
+(()=>{
+ const $=id=>document.getElementById(id);
+ const graph=$('chart').closest('section.panel'),card=$('decard'),batch=$('batchcard');
+ const aside=document.querySelector('.layout>aside');
+ const box=document.createElement('div');box.id='presentation-tools';box.style.cssText='display:none;padding:8px;font-size:13px';
+ box.innerHTML='<b>Visible graphs</b><label style="display:block;margin-top:8px"><input type="checkbox" id="v-game" checked> Individual game</label><label style="display:block;margin-top:7px"><input type="checkbox" id="v-sir" checked> SIR model</label><label style="display:block;margin-top:7px"><input type="checkbox" id="v-batch" checked> 50-game ensemble</label><hr><label style="display:block">Time axis maximum <input id="axis-max" type="number" min="1" max="500" placeholder="Automatic" style="width:100%;padding:5px;margin-top:5px"></label><small>Blank = 75th percentile of final population changes across 50 games, with a short buffer.</small><button id="back-controls" style="width:100%;margin-top:12px">↙ Return to controls</button>';
+ aside.insertBefore(box,aside.querySelector('.controls'));
+ const style=document.createElement('style');style.textContent='body.graph-focus #presentation-tools{display:block!important}body.graph-focus #v-game,body.graph-focus #v-sir,body.graph-focus #v-batch{accent-color:#77372f}body.graph-focus .right>section:nth-child(2).plot-off{display:none!important}body.graph-focus #decard.plot-off,body.graph-focus #batchcard.plot-off{display:none!important}body.graph-focus #showsir,body.graph-focus #togglede,body.graph-focus #hidebatch,body.graph-focus #batch,body.graph-focus #focus{display:none!important}body:not(.graph-focus) #batch{display:none!important}';document.head.appendChild(style);
+ function sync(){const focus=document.body.classList.contains('graph-focus');if(focus){card.hidden=false;$('depanel').hidden=false;$('batchpanel').hidden=false;batch.hidden=false; }graph.classList.toggle('plot-off',focus&&!$('v-game').checked);card.classList.toggle('plot-off',focus&&!$('v-sir').checked);batch.classList.toggle('plot-off',focus&&!$('v-batch').checked);$('lockaxis').closest('label').style.display='none';if(focus){$('dechart').setAttribute('preserveAspectRatio','none');$('batchchart').setAttribute('preserveAspectRatio','none');}}
+ for(const id of ['v-game','v-sir','v-batch'])$(id).addEventListener('change',sync);
+ $('back-controls').addEventListener('click',()=>{if(document.body.classList.contains('graph-focus'))$('focus').click()});
+ $('focus').addEventListener('click',()=>setTimeout(sync,0));
+ new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});
+ // Keep the original graph rendering untouched; axis override is provided by sharedHorizon.
+ $('axis-max').addEventListener('change',()=>{$('showthreshold').dispatchEvent(new Event('change'));});
+ // Apply changed game parameters while presenting; existing simulator reset keeps the rules consistent.
+ const gameFields=['population','size','initial','faces','recover','margin'];
+ gameFields.forEach(id=>$(id).addEventListener('change',()=>{if(document.body.classList.contains('graph-focus')){$('reset').click();}}));
+ // Existing reset logic handles recovery, immunity, and maximum rounds. Refresh the ensemble afterward.
+ ['recover','margin','population','size','initial','faces','headtohead','waning','immunityfaces','immunitybelow','maxrounds'].forEach(id=>{
+  if(gameFields.includes(id))return;
+  $(id).addEventListener('change',()=>{if(document.body.classList.contains('graph-focus'))void 0});
+ });
+ $('reset').addEventListener('click',()=>{if(document.body.classList.contains('graph-focus'))void 0});
+ // Ensemble button is hidden in Game Mode; analysis automatically supplies its curves.
+ sync();
+})();
+</script>
+
+<style id="analysis-polish">
+/* The mode switch belongs on the game dashboard, not in the plots. */
+body:not(.graph-focus) #model,body:not(.graph-focus) #model + span{display:none!important}
+body:not(.graph-focus) label:has(> #model){display:none!important}
+body.graph-focus .right{height:calc(100dvh - 18px)!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:repeat(var(--visible-plots,3),minmax(0,1fr))!important;overflow:hidden!important;gap:6px!important;box-sizing:border-box}
+body.graph-focus .right>section:nth-child(2),body.graph-focus #decard,body.graph-focus #batchcard{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important;box-sizing:border-box}
+body.graph-focus .right>section:nth-child(2).plot-off,body.graph-focus #decard.plot-off,body.graph-focus #batchcard.plot-off{display:none!important}
+body.graph-focus .right>section:nth-child(2) svg.chart,body.graph-focus #decard svg.chart,body.graph-focus #batchcard svg.chart{display:block!important;flex:1 1 0!important;height:0!important;min-height:0!important;max-height:none!important;width:100%!important;aspect-ratio:auto!important}
+body.graph-focus #depanel,body.graph-focus #batchpanel{display:flex!important;flex-direction:column!important;flex:1 1 0!important;min-height:0!important;overflow:hidden!important}
+body.graph-focus #depanel[hidden],body.graph-focus #batchpanel[hidden]{display:none!important}
+body.graph-focus .focus-controls{display:none!important}
+body.graph-focus .right>section:nth-child(2) .chartkey{display:none!important}
+body.graph-focus .right>section:nth-child(2) .top{margin-bottom:0!important}
+body.graph-focus #decard .top,body.graph-focus #batchcard .top{flex-shrink:0!important}
+body.graph-focus #decard h2,body.graph-focus #batchcard h2,body.graph-focus .right>section:nth-child(2) h2{font-size:16px!important;margin:0!important}
+body.graph-focus #batchpanel .chartkey{display:none!important}
+body.graph-focus #batchpanel .model-toggles{flex-shrink:0!important}
+body.graph-focus #chart,body.graph-focus #dechart,body.graph-focus #batchchart{preserveAspectRatio:none}
+</style>
+<script id="analysis-polish-script">
+(()=>{
+ const $=id=>document.getElementById(id);
+ const right=document.querySelector('.right');
+ const graph=$('chart').closest('section.panel');
+ const de=$('decard'),batch=$('batchcard');
+ const focus=$('focus');
+ const label=()=>{focus.textContent=document.body.classList.contains('graph-focus')?'↙ Game Mode':'⛶ Analysis Mode';$('back-controls').textContent='↙ Game Mode';};
+ const update=()=>{
+   label();
+   if(!document.body.classList.contains('graph-focus'))return;
+   const selected=[['v-game',graph],['v-sir',de],['v-batch',batch]];
+   if(!selected.some(([id])=>$(id).checked)){$('v-game').checked=true;}
+   for(const [id,card] of selected)card.classList.toggle('plot-off',!$(id).checked);
+   right.style.setProperty('--visible-plots',selected.filter(([id])=>$(id).checked).length);
+   for(const id of ['chart','dechart','batchchart'])$(id).setAttribute('preserveAspectRatio','none');
+ };
+ // Remove redundant controls from the individual-game plot header.
+ const modelLabel=$('model').closest('label');modelLabel.style.display='none';
+ // Keep only the graph title in analysis mode; simulation buttons remain in the left sidebar.
+ const oldSync=()=>requestAnimationFrame(update);
+ for(const id of ['v-game','v-sir','v-batch'])$(id).addEventListener('change',oldSync);
+ focus.addEventListener('click',()=>setTimeout(update,10));
+ $('back-controls').addEventListener('click',()=>setTimeout(update,10));
+ new MutationObserver(update).observe(document.body,{attributes:true,attributeFilter:['class']});
+ update();
+})();
+</script>
+
+<style id="hide-obsolete-sir-button">#showsir {display:none !important;}</style>
+<style id="analysis-visible-graph-repair">
+/* Fix zero-height SVGs introduced by the analysis flex sizing rules. */
+body.graph-focus .right > section:nth-child(2) > svg#chart,
+body.graph-focus #depanel > svg#dechart,
+body.graph-focus #batchpanel > svg#batchchart {
+  display:block!important;
+  flex:1 1 auto!important;
+  height:100%!important;
+  min-height:70px!important;
+  max-height:100%!important;
+  width:100%!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+body.graph-focus #depanel,body.graph-focus #batchpanel {flex:1 1 auto!important;min-height:70px!important;}
+body.graph-focus .right > section:nth-child(2),
+body.graph-focus #decard,body.graph-focus #batchcard {min-height:0!important;}
+</style>
+
+<!-- Analysis layout stabilization: override the accumulated dashboard grid rules. -->
+<style id="analysis-layout-stable">
+body.graph-focus .right {
+ display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+ grid-template-rows:repeat(var(--visible-plots,3),minmax(0,1fr))!important;
+ gap:8px!important;height:calc(100dvh - 36px)!important;
+ min-height:480px!important;overflow:hidden!important;align-content:stretch!important;
+ align-items:stretch!important;
+}
+body.graph-focus .right>section:first-child{display:none!important}
+body.graph-focus .right>section:nth-child(2),
+body.graph-focus #decard,body.graph-focus #batchcard{
+ grid-column:1/-1!important;grid-row:auto!important;
+ width:100%!important;height:auto!important;min-height:0!important;
+ display:flex!important;flex-direction:column!important;overflow:hidden!important;
+ padding:7px 12px!important;align-self:stretch!important;
+}
+body.graph-focus .right>section:nth-child(2).plot-off,
+body.graph-focus #decard.plot-off,body.graph-focus #batchcard.plot-off{display:none!important}
+body.graph-focus #depanel,body.graph-focus #batchpanel{
+ display:flex!important;flex-direction:column!important;
+ flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;
+}
+body.graph-focus #chart,body.graph-focus #dechart,body.graph-focus #batchchart{
+ display:block!important;flex:1 1 auto!important;
+ height:100%!important;min-height:65px!important;max-height:none!important;
+ width:100%!important;visibility:visible!important;
+}
+body.graph-focus #batchsummary{display:none!important}
+</style>
+<script id="analysis-layout-stable-script">
+(()=>{
+ const $=id=>document.getElementById(id);
+ const focus=$('focus'),reset=$('reset'),de=$('decard');
+ const refresh=()=>{
+  if(!document.body.classList.contains('graph-focus'))return;
+  // The simulator tracks model visibility in a private variable; making its
+  // container visible alone does not cause the model to be plotted.
+  if(de.hidden || !$('dechart').querySelector('path'))$('showsir').click();
+  de.hidden=false;$('depanel').hidden=false;
+  const selected=[['v-game',$('chart').closest('section.panel')],['v-sir',de],['v-batch',$('batchcard')]];
+  if(!selected.some(([id])=>$(id).checked))$('v-game').checked=true;
+  selected.forEach(([id,card])=>card.classList.toggle('plot-off',!$(id).checked));
+  document.querySelector('.right').style.setProperty('--visible-plots',selected.filter(([id])=>$(id).checked).length);
+ };
+ focus.addEventListener('click',()=>setTimeout(refresh,30));
+ reset.addEventListener('click',()=>setTimeout(refresh,30));
+ ['v-game','v-sir','v-batch'].forEach(id=>$(id).addEventListener('change',()=>requestAnimationFrame(refresh)));
+ setTimeout(refresh,0);
+})();
+</script>
+
+<style id="force-real-vertical-stack">
+/* Final, unambiguous override: flex column ignores legacy grid-column placements. */
+html body.graph-focus .layout .right {
+ display:flex!important; flex-direction:column!important; flex-wrap:nowrap!important;
+ grid-template-columns:none!important; grid-template-rows:none!important;
+ gap:7px!important; height:calc(100dvh - 20px)!important;
+ padding-left:280px!important; align-items:stretch!important; overflow:hidden!important;
+}
+html body.graph-focus .layout .right > section:nth-child(2),
+html body.graph-focus .layout .right > #decard,
+html body.graph-focus .layout .right > #batchcard {
+ position:relative!important; display:flex!important; flex-direction:column!important;
+ flex:1 1 0!important; width:100%!important; max-width:none!important;
+ min-width:0!important; min-height:0!important; height:auto!important;
+ grid-column:auto!important; grid-row:auto!important; align-self:stretch!important;
+ overflow:hidden!important; box-sizing:border-box!important;
+}
+html body.graph-focus .layout .right > section:nth-child(2).plot-off,
+html body.graph-focus .layout .right > #decard.plot-off,
+html body.graph-focus .layout .right > #batchcard.plot-off {display:none!important;}
+html body.graph-focus .layout .right #chart,
+html body.graph-focus .layout .right #dechart,
+html body.graph-focus .layout .right #batchchart {
+ flex:1 1 0!important; width:100%!important; height:100%!important;
+ min-height:45px!important; max-height:none!important;
+}
+@media(max-width:700px){html body.graph-focus .layout .right{padding-left:0!important}}
+</style>
+
+
+<style id="force-real-vertical-stack">
+/* Final, unambiguous override: flex column ignores legacy grid-column placements. */
+html body.graph-focus .layout .right {
+ display:flex!important; flex-direction:column!important; flex-wrap:nowrap!important;
+ grid-template-columns:none!important; grid-template-rows:none!important;
+ gap:7px!important; height:calc(100dvh - 20px)!important;
+ padding-left:280px!important; align-items:stretch!important; overflow:hidden!important;
+}
+html body.graph-focus .layout .right > section:nth-child(2),
+html body.graph-focus .layout .right > #decard,
+html body.graph-focus .layout .right > #batchcard {
+ position:relative!important; display:flex!important; flex-direction:column!important;
+ flex:1 1 0!important; width:100%!important; max-width:none!important;
+ min-width:0!important; min-height:0!important; height:auto!important;
+ grid-column:auto!important; grid-row:auto!important; align-self:stretch!important;
+ overflow:hidden!important; box-sizing:border-box!important;
+}
+html body.graph-focus .layout .right > section:nth-child(2).plot-off,
+html body.graph-focus .layout .right > #decard.plot-off,
+html body.graph-focus .layout .right > #batchcard.plot-off {display:none!important;}
+html body.graph-focus .layout .right #chart,
+html body.graph-focus .layout .right #dechart,
+html body.graph-focus .layout .right #batchchart {
+ flex:1 1 0!important; width:100%!important; height:100%!important;
+ min-height:45px!important; max-height:none!important;
+}
+@media(max-width:700px){html body.graph-focus .layout .right{padding-left:0!important}}
+</style>
+<style id="solo-axis-and-sidebar-final">
+/* Keep solo plots at a readable height; don't stretch their SVG typography. */
+html body.graph-focus .layout .right:has(> section:nth-child(2):not(.plot-off)) > section:nth-child(2):not(.plot-off):only-of-type {max-height:65vh!important}
+html body.graph-focus .layout .right > section:nth-child(2):not(.plot-off),
+html body.graph-focus .layout .right > #decard:not(.plot-off),
+html body.graph-focus .layout .right > #batchcard:not(.plot-off){padding-bottom:15px!important}
+/* Sidebar remains usable on smaller displays. */
+html body.graph-focus .layout > aside {max-height:calc(100dvh - 20px)!important;overflow-y:auto!important;overscroll-behavior:contain!important;scrollbar-width:thin}
+html body.graph-focus .layout > aside h1{font-size:1.12rem!important}
+html body.graph-focus .layout > aside label,html body.graph-focus .layout > aside .checkrow{font-size:10.5px!important;line-height:1.08!important}
+html body.graph-focus .layout > aside input:not([type=checkbox]):not([type=range]),html body.graph-focus .layout > aside select{height:29px!important;padding:3px 5px!important;font-size:11px!important}
+html body.graph-focus .layout > aside button{min-height:29px!important;padding:5px!important;font-size:11px!important}
+</style>
+<script id="solo-axis-aspect-ratio-fix">
+(()=>{
+ const ids=['chart','dechart','batchchart'];
+ const sync=()=>{
+  if(!document.body.classList.contains('graph-focus'))return;
+  const cards=[document.getElementById('chart').closest('section.panel'),document.getElementById('decard'),document.getElementById('batchcard')];
+  const visible=cards.filter(c=>c&&!c.classList.contains('plot-off'));
+  const right=document.querySelector('.right');
+  right.classList.toggle('one-graph',visible.length===1);
+  ids.forEach(id=>document.getElementById(id).setAttribute('preserveAspectRatio',visible.length===1?'xMidYMid meet':'none'));
+ };
+ const observer=new MutationObserver(()=>requestAnimationFrame(sync));
+ observer.observe(document.body,{attributes:true,attributeFilter:['class']});
+ ['v-game','v-sir','v-batch'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>setTimeout(sync,40)));
+ document.getElementById('focus')?.addEventListener('click',()=>setTimeout(sync,50));
+ sync();
+})();
+</script>
+<style id="one-graph-height-fix">
+html body.graph-focus .layout .right.one-graph > section:nth-child(2):not(.plot-off),
+html body.graph-focus .layout .right.one-graph > #decard:not(.plot-off),
+html body.graph-focus .layout .right.one-graph > #batchcard:not(.plot-off){flex:0 0 auto!important;height:min(64vh,510px)!important;max-height:calc(100dvh - 70px)!important}
+html body.graph-focus .layout .right.one-graph svg.chart{min-height:0!important}
+</style>
+
+<style id="regenerate-ensemble-style">
+body.graph-focus #batchpanel > .top {display:flex;align-items:center;justify-content:space-between;gap:10px}
+body.graph-focus #regenerate-ensemble {display:inline-flex!important;align-items:center;white-space:nowrap;font-size:12px;padding:5px 9px;margin-left:auto}
+body:not(.graph-focus) #regenerate-ensemble {display:none!important}
+</style>
+<script id="regenerate-ensemble-script">
+(()=>{
+ const panel=document.getElementById('batchpanel');
+ const header=panel&&panel.querySelector('.top');
+ const batch=document.getElementById('batch');
+ if(!header||!batch)return;
+ const button=document.createElement('button');
+ button.type='button';button.id='regenerate-ensemble';
+ button.textContent='🎲 Regenerate 50 games';
+ button.title='Generate a fresh set of 50 random games';
+ button.addEventListener('click',()=>batch.click());
+ header.appendChild(button);
+})();
+</script>
+
+
+<style id="crossing-label-polish">
+body.graph-focus .crossing-note{margin-left:auto;font-size:clamp(11px,1vw,14px);font-weight:650;color:#167341;white-space:nowrap;align-self:center;padding:2px 8px;border-radius:6px;background:rgba(45,133,80,.09)}
+body.graph-focus #batchcard .crossing-note{font-size:clamp(10px,.9vw,13px)}
+body:not(.graph-focus) .crossing-note{display:none}
+body.graph-focus .right svg.chart text{font-family:Georgia,serif}
+body.graph-focus .right svg.chart text[data-axis-label="true"]{font-size:11px}
+</style>
+<script id="crossing-label-polish-script">
+(()=>{
+ const ids=['chart','dechart','batchchart'];
+ const cards=ids.map(id=>document.getElementById(id).closest('section.panel'));
+ const notes=cards.map((card,i)=>{
+   const node=document.createElement('span');node.className='crossing-note';node.setAttribute('aria-live','polite');
+   const header=card.querySelector('.top');
+   if(header)header.appendChild(node);
+   else {const h=card.querySelector('h2,h3');h?.insertAdjacentElement('afterend',node)}
+   return node;
+ });
+ let pending=false;
+ function clean(){pending=false;
+   ids.forEach((id,i)=>{
+     const svg=document.getElementById(id);if(!svg)return;
+     const textNodes=[...svg.querySelectorAll('text')];
+     const extracted=[];
+     for(const node of textNodes){
+       const t=(node.textContent||'').trim();
+       if(/^between rounds\s+\d+\s+and\s+\d+/i.test(t)){
+         extracted.push(t.replace(/^between/i,'Between'));node.remove();
+       } else if(/^(Mean|Discrete):\s*\d/i.test(t)){
+         extracted.push(t);node.remove();
+       } else if(/^S\*\s*=/.test(t)){
+         node.setAttribute('font-size','11');
+         node.setAttribute('font-weight','600');
+       } else if(/^\d+(?:\.\d+)?$/.test(t)){
+         node.dataset.axisLabel='true';node.setAttribute('font-size','11');
+       }
+     }
+     if(extracted.length){
+       notes[i].textContent=extracted.join(' · ');
+       notes[i].hidden=false;
+     } else {
+       notes[i].textContent='';notes[i].hidden=true;
+     }
+   });
+ }
+ function schedule(){if(!pending){pending=true;requestAnimationFrame(clean)}}
+ ids.forEach(id=>{const svg=document.getElementById(id);if(svg)new MutationObserver(schedule).observe(svg,{childList:true,subtree:true})});
+ document.getElementById('showthreshold')?.addEventListener('change',schedule);
+ // A fixed aspect ratio prevents SVG glyphs (especially tick labels) from
+ // stretching when only one plot occupies the analysis area.
+ const updateAspect=()=>{
+   const focus=document.body.classList.contains('graph-focus');
+   const count=['v-game','v-sir','v-batch'].filter(id=>document.getElementById(id)?.checked).length;
+   ids.forEach(id=>document.getElementById(id)?.setAttribute('preserveAspectRatio',focus&&count===1?'xMidYMid meet':'none'));
+ };
+ ['v-game','v-sir','v-batch'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>requestAnimationFrame(updateAspect)));
+ new MutationObserver(()=>requestAnimationFrame(updateAspect)).observe(document.body,{attributes:true,attributeFilter:['class']});
+ schedule();updateAspect();
+})();
+</script>
+
+<!-- Axis text is rendered in an HTML overlay at fixed CSS-pixel size.
+     The SVG still stretches its DATA geometry, but cannot distort labels. -->
+<style id="independent-axis-label-style">
+.axis-overlay-wrap{position:relative;min-width:0;flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.axis-overlay-wrap>svg.chart{flex:1 1 auto!important;min-height:0!important;width:100%!important}
+.axis-overlay-wrap .axis-label-layer{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:2}
+.axis-overlay-wrap .axis-html-label{position:absolute;white-space:nowrap;font:600 15px/1 Georgia,serif;color:#655342;transform:translate(-50%,-50%)}
+.axis-overlay-wrap .axis-html-label.y-axis{transform:translate(-100%,-50%)}
+.axis-overlay-wrap .axis-html-label.threshold-label{font-size:15px;color:#167341;font-weight:700;transform:translate(-100%,-50%)}
+/* The main game graph needs space below the x-axis before its model information. */
+body:not(.graph-focus) .axis-overlay-wrap{padding-bottom:17px}
+body.graph-focus .axis-overlay-wrap{padding-bottom:15px}
+</style>
+<script id="independent-axis-labels">
+(()=>{
+ const ids=['chart','dechart','batchchart'];
+ let scheduled=false;
+ const items=ids.map(id=>{
+   const svg=document.getElementById(id);if(!svg)return null;
+   const wrap=document.createElement('div');wrap.className='axis-overlay-wrap';
+   svg.parentNode.insertBefore(wrap,svg);wrap.appendChild(svg);
+   const layer=document.createElement('div');layer.className='axis-label-layer';wrap.appendChild(layer);
+   new MutationObserver(schedule).observe(svg,{childList:true,subtree:true});
+   new ResizeObserver(schedule).observe(svg);
+   return {svg,wrap,layer};
+ }).filter(Boolean);
+ function update(){
+  scheduled=false;
+  for(const {svg,layer} of items){
+   const rect=svg.getBoundingClientRect(),outer=layer.getBoundingClientRect();
+   const vb=svg.viewBox.baseVal;if(!rect.width||!rect.height)continue;
+   const mode=svg.getAttribute('preserveAspectRatio')||'xMidYMid meet';
+   const uniform=!mode.includes('none');
+   const scale=uniform?Math.min(rect.width/vb.width,rect.height/vb.height):0;
+   const dx=uniform?(rect.width-vb.width*scale)/2:0;
+   const dy=uniform?(rect.height-vb.height*scale)/2:0;
+   const X=x=>rect.left-outer.left+dx+(x-vb.x)*(uniform?scale:rect.width/vb.width);
+   const Y=y=>rect.top-outer.top+dy+(y-vb.y)*(uniform?scale:rect.height/vb.height);
+   const fragment=document.createDocumentFragment();
+   for(const node of svg.querySelectorAll('text')){
+     const content=(node.textContent||'').trim();
+     // Only numerical tick labels and threshold annotations; keep other labels unchanged.
+     const numeric=/^\d+(?:\.\d+)?$/.test(content);
+     const threshold=/^S\*\s*=/.test(content);
+     if(!numeric&&!threshold)continue;
+     node.style.visibility='hidden';
+     const label=document.createElement('span');label.className='axis-html-label'+(threshold?' threshold-label':'');
+     label.textContent=content;
+     const x=Number(node.getAttribute('x')),y=Number(node.getAttribute('y'));
+     label.style.left=X(x)+'px';label.style.top=Y(y)+'px';
+     if(threshold){label.classList.add('threshold-label')}
+     else if(x<65){label.classList.add('y-axis')}
+     fragment.appendChild(label);
+   }
+   layer.replaceChildren(fragment);
+  }
+ }
+ function schedule(){if(!scheduled){scheduled=true;requestAnimationFrame(update)}}
+ new ResizeObserver(schedule).observe(document.body);
+ new MutationObserver(schedule).observe(document.body,{attributes:true,attributeFilter:['class']});
+ ['focus','v-game','v-sir','v-batch'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>setTimeout(schedule,80)));
+ schedule();
+})();
+</script>
+
+<style id="minimal-ensemble-counter-style">
+#speedout{display:none!important}
+.ensemble-crossed-badge{font-family:Georgia,serif;font-size:12px;font-weight:700;color:#167341;white-space:nowrap;margin-left:8px}
+body.graph-focus .ensemble-crossed-badge{font-size:clamp(12px,1vw,16px)}
+</style>
+
+<style id="game-legend-size-only">.right>section:first-child .legend{font-size:12px}</style>
+
+<style id="manual-plot-controls-css">
+/* Hide only data curves, never the axes or graph cards. */
+body.graph-focus:not(.game-has-rounds) #chart polyline,
+body.graph-focus:not(.game-has-rounds) #chart circle {display:none!important}
+body.graph-focus:not(.model-plotted) #dechart polyline,
+body.graph-focus:not(.model-plotted) #dechart circle {display:none!important}
+body.graph-focus:not(.ensemble-plotted) #batchchart polyline,
+body.graph-focus:not(.ensemble-plotted) #batchchart circle {display:none!important}
+body.graph-focus #plot-discrete-model,body.graph-focus #regenerate-ensemble{display:inline-flex!important}
+body.graph-focus #batchcard .model-toggles{display:flex!important}
+</style>
+<script id="manual-plot-controls-js">
+(()=>{
+ const $=id=>document.getElementById(id);
+ const body=document.body, focus=$('focus'), batch=$('batch'), ensemble=$('batchchart');
+ const header=$('decard').querySelector('.top');
+ const modelButton=document.createElement('button');modelButton.id='plot-discrete-model';modelButton.type='button';modelButton.textContent='Plot model';
+ header.appendChild(modelButton);
+ const batchButton=$('regenerate-ensemble');
+ if(batchButton)batchButton.textContent='🎲 Generate 50 games';
+ let played=false,modelPlotted=false,ensemblePlotted=false;
+ const sync=()=>{
+  body.classList.toggle('game-has-rounds',played);
+  body.classList.toggle('model-plotted',modelPlotted);
+  body.classList.toggle('ensemble-plotted',ensemblePlotted);
+  // Give the empty ensemble genuine axes, without generating any random games.
+  if(!ensemblePlotted && !ensemble.querySelector('line')){
+   const source=$('dechart');
+   if(source && source.innerHTML){
+    const copy=source.cloneNode(true);
+    copy.querySelectorAll('polyline,circle,path').forEach(n=>n.remove());
+    ensemble.innerHTML=copy.innerHTML;
+   }
+  }
+ };
+ modelButton.addEventListener('click',()=>{modelPlotted=true;modelButton.textContent='↻ Replot model';$('model').checked=true;$('depanel').hidden=false;$('decard').hidden=false;$('showthreshold').dispatchEvent(new Event('change'));sync()});
+ // Generate explicitly; never as a side effect of entering Analysis Mode.
+ if(batchButton)batchButton.addEventListener('click',()=>{ensemblePlotted=true;sync();batchButton.textContent='🎲 Regenerate 50 games'});
+ batch.addEventListener('click',()=>{ensemblePlotted=true;sync()});
+ $('step').addEventListener('click',()=>{played=true;sync()});
+ $('focusstep').addEventListener('click',()=>{played=true;sync()});
+ $('auto').addEventListener('click',()=>{if(!$('auto').textContent.includes('Auto-play')){played=true;sync()}});
+ $('reset').addEventListener('click',()=>{played=false;sync()});
+ $('back').addEventListener('click',()=>{played=Number($('round').textContent)>0;sync()});
+ focus.addEventListener('click',()=>{if(body.classList.contains('graph-focus')){
+  $('v-game').checked=true;$('v-sir').checked=true;$('v-batch').checked=true;
+  for(const id of ['v-game','v-sir','v-batch'])$(id).dispatchEvent(new Event('change'));
+  $('decard').hidden=false;$('depanel').hidden=false;$('batchcard').hidden=false;$('batchpanel').hidden=false;
+  $('showthreshold').dispatchEvent(new Event('change'));
+  sync();
+ }});
+ // When parameters change, a prior deterministic model is no longer current.
+ ['population','size','initial','faces','recover','margin','headtohead','waning','immunityfaces','immunitybelow'].forEach(id=>$(id).addEventListener('change',()=>{modelPlotted=false;ensemblePlotted=false;ensemble.innerHTML='';if(batchButton)batchButton.textContent='🎲 Generate 50 games';modelButton.textContent='Plot model';sync()}));
+ sync();
+})();
+</script>
