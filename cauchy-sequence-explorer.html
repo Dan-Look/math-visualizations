@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cauchy Sequence Explorer</title>
+<style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#243044;background:#f5f7fb}
+*{box-sizing:border-box}
+body{margin:0;padding:14px 20px}
+h1{margin:0 0 3px;font-size:24px}
+p.lead{margin:0 0 10px;color:#536174;font-size:14px}
+.layout{display:grid;grid-template-columns:310px minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+.card{background:white;border:1px solid #dce3ec;border-radius:12px;padding:12px 14px;box-shadow:0 2px 9px #2233440b}
+.field{margin:0 0 10px}
+.field label{display:block;font-weight:700;margin-bottom:4px;font-size:13px}
+.field input[type=text],.field input[type=number],.field select{padding:5px 8px;border:1px solid #bdc8d6;border-radius:7px;font-size:14px;width:100%;background:#fff;color:#243044}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:7px;align-items:center}
+input[type=range]{width:100%;accent-color:#2762ad}
+.n-stepper{display:flex;align-items:center;gap:5px}
+.n-stepper button{width:26px;height:26px;border:1px solid #bdc8d6;border-radius:7px;background:#eef3fa;color:#243044;font-size:17px;cursor:pointer;flex:none}
+.n-stepper button:disabled{opacity:.4;cursor:default}
+.n-stepper input[type=range]{flex:1;min-width:0}
+.check{display:flex;gap:6px;align-items:center;margin:6px 0;font-size:13px}
+.check input{width:15px;height:15px;margin:0;flex:none}
+.help{font-size:11px;color:#66778a;margin-top:3px;line-height:1.3}
+.status{padding:8px 10px;border-radius:7px;background:#edf4ff;color:#244a77;font-size:13px;line-height:1.4;margin-top:8px}
+.status.error{background:#ffeded;color:#a52a2a}
+.status small{color:#5b6b80}
+.graph-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.graph-head h2{font-size:17px;margin:0}
+.legend{font-size:12px;color:#536174}
+.legend span{margin-left:9px;white-space:nowrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.sq{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px}
+.dash{display:inline-block;width:16px;border-top:2px dashed #2e69a8;margin-right:4px;vertical-align:3px}
+canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-radius:7px}
+#pairGrid{cursor:crosshair}
+.graph-footer{font-size:12px;color:#58687a;margin-top:8px;line-height:1.4;min-height:2.8em}
+.readout{font-size:15px;margin-top:8px;padding:7px 9px;border-radius:7px;background:#f3f5f9;min-height:2.3em}
+.readout.ok{background:#e7f5ec;color:#1d6b40}
+.readout.bad{background:#fbeaea;color:#9b2c2c}
+@media(max-width:1180px){.layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.controls{grid-column:1/-1}}
+@media(max-width:760px){body{padding:12px}.layout{grid-template-columns:1fr}canvas{height:380px}}
+</style>
+</head>
+<body>
+<a href="index.html" style="display:inline-block;align-self:flex-start;margin:0 0 6px;font:600 13px Arial,Helvetica,sans-serif;color:#2762ad;text-decoration:none">← All visualizations</a>
+<h1>Cauchy Sequence Explorer</h1>
+<p class="lead">A sequence is Cauchy if for every ε &gt; 0 there is an N such that |aₘ − aₙ| &lt; ε whenever m, n ≥ N. Notice that no limit appears in the definition.</p>
+<div class="layout">
+
+<section class="card controls">
+ <div class="field"><label for="preset">Example</label>
+  <select id="preset"></select></div>
+ <div class="field"><label for="mode">Sequence type</label>
+  <select id="mode">
+   <option value="formula">Formula aₙ in terms of n</option>
+   <option value="sum">Partial sums sₙ = a₁ + a₂ + ⋯ + aₙ</option>
+  </select></div>
+ <div class="field"><label for="expr" id="exprLabel">Sequence aₙ (in terms of n)</label>
+  <input id="expr" type="text" value="(-1)^n/n" spellcheck="false" autocomplete="off">
+  <div class="help" id="exprHelp">Examples: 1/n, (-1)^n/n, sin(n)/n, sqrt(n). Use ^ for powers.</div></div>
+ <div class="field"><label for="epsNumber">Tolerance ε</label>
+  <div class="pair"><input id="epsSlider" type="range" min="0.01" max="2" step="0.01" value="0.2"><input id="epsNumber" type="number" min="0.000001" step="any" value="0.2"></div></div>
+ <div class="field"><label for="nNumber">Starting index N</label>
+  <div class="pair"><div class="n-stepper"><button id="nMinus" type="button" aria-label="Decrease N by one">−</button><input id="nSlider" type="range" min="1" max="60" step="1" value="5"><button id="nPlus" type="button" aria-label="Increase N by one">+</button></div><input id="nNumber" type="number" min="1" step="1" value="5"></div></div>
+ <div class="field"><label for="kNumber">Pair grid shows m, n = 1 to</label>
+  <div class="pair"><div class="n-stepper"><button id="kMinus" type="button" aria-label="Shrink grid by one">−</button><input id="kSlider" type="range" min="5" max="60" step="1" value="15"><button id="kPlus" type="button" aria-label="Enlarge grid by one">+</button></div><input id="kNumber" type="number" min="5" max="60" step="1" value="15"></div></div>
+ <div class="field"><label for="tested">Terms tested</label>
+  <select id="tested">
+   <option value="1000">First 1,000 terms</option>
+   <option value="10000" selected>First 10,000 terms</option>
+   <option value="100000">First 100,000 terms</option>
+  </select>
+  <div class="help">The graphs show the first 60 terms. The check below uses every pair m, n ≥ N among the tested terms.</div></div>
+ <label class="check"><input type="checkbox" id="smallest"> Find smallest N automatically</label>
+ <label class="check"><input type="checkbox" id="showWindow" checked> Show tail range and ε-window</label>
+ <div class="status" id="status" aria-live="polite">Ready.</div>
+</section>
+
+<section class="card">
+ <div class="graph-head"><h2 id="seqTitle">Sequence terms</h2>
+  <div class="legend"><span><i class="dot" style="background:#8993a0"></i>n &lt; N</span><span><i class="dot" style="background:#2762ad"></i>n ≥ N</span><span><i class="dash"></i>height ε</span></div></div>
+ <canvas id="seqGraph"></canvas>
+ <div class="graph-footer">Shaded strip: from the smallest to the largest tested term with n ≥ N. Dashed lines: a window of height ε starting at the edge of the strip. The tail fits inside the window exactly when every pair m, n ≥ N satisfies |aₘ − aₙ| &lt; ε.</div>
+</section>
+
+<section class="card">
+ <div class="graph-head"><h2>All pairs (m, n)</h2>
+  <div class="legend"><span><i class="sq" style="background:#2f9e5f"></i>|aₘ − aₙ| &lt; ε</span><span><i class="sq" style="background:#d4474b"></i>|aₘ − aₙ| ≥ ε</span></div></div>
+ <canvas id="pairGrid"></canvas>
+ <div class="readout" id="readout">Click a square to compare two terms.</div>
+</section>
+
+</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const seqCanvas=$('seqGraph'),seqCtx=seqCanvas.getContext('2d');
+const gridCanvas=$('pairGrid'),gridCtx=gridCanvas.getContext('2d');
+const VISIBLE=60;
+
+const PRESETS=[
+ {label:'aₙ = (−1)ⁿ/n (Cauchy)',mode:'formula',expr:'(-1)^n/n'},
+ {label:'aₙ = sin(n)/n (Cauchy)',mode:'formula',expr:'sin(n)/n'},
+ {label:'aₙ = (2n+1)/(n+3) (Cauchy)',mode:'formula',expr:'(2n+1)/(n+3)'},
+ {label:'sₙ = sum of 1/k² (Cauchy)',mode:'sum',expr:'1/k^2'},
+ {label:'sₙ = sum of (−1)ᵏ⁺¹/k (Cauchy)',mode:'sum',expr:'(-1)^(k+1)/k'},
+ {label:'aₙ = (−1)ⁿ (not Cauchy)',mode:'formula',expr:'(-1)^n'},
+ {label:'sₙ = sum of 1/k (not Cauchy)',mode:'sum',expr:'1/k'},
+ {label:'aₙ = √n (not Cauchy)',mode:'formula',expr:'sqrt(n)'}
+];
+
+let data=null,dataKey='',fixedRange=null,rangeKey='';
+let selected=null,gridGeom=null;
+
+// ---------- Formula parsing (same rules as the Sequence Convergence Explorer) ----------
+function compileExpr(raw,v){
+ let s=raw.trim().replace(/[−–]/g,'-').replace(/π/g,'PI').replace(/[{}]/g,c=>c==='{'?'(':')');
+ if(!s)throw Error('Please enter a formula.');
+ // A leading or unary minus becomes (-1)*, so that -n^2 means -(n^2).
+ s=s.replace(/(^|[(+\-*/,])\s*-/g,'$1(-1)*');
+ // Classroom shorthand: 2n, 3(n+1), n(n+1), (n+1)(n+2).
+ s=s.replace(new RegExp('(\\d)(?=\\s*'+v+'\\b)','g'),'$1*')
+    .replace(new RegExp('\\b'+v+'\\s*(?=\\()','g'),v+'*')
+    .replace(new RegExp('\\)(?=\\s*(?:'+v+'\\b|\\d|\\())','g'),')*')
+    .replace(/(\d)(?=\()/g,'$1*')
+    .replace(/\^/g,'**');
+ if(!/^[\d\s.()+\-*/%,A-Za-z]*$/.test(s))throw Error('Please enter a valid formula.');
+ const allowed=new Set([v,'sin','cos','tan','abs','sqrt','log','ln','exp','floor','ceil','round','PI','E','pow']);
+ const bad=(s.match(/[A-Za-z_]+/g)||[]).find(x=>!allowed.has(x));
+ if(bad)throw Error(bad==='n'||bad==='k'?`Use the variable ${v} in this mode.`:`Unrecognized name "${bad}" in the formula.`);
+ s=s.replace(/\b(sin|cos|tan|abs|sqrt|log|exp|floor|ceil|round|pow)\b/g,'Math.$1').replace(/\bln\b/g,'Math.log').replace(/\bPI\b/g,'Math.PI').replace(/\bE\b/g,'Math.E');
+ let f;
+ try{f=new Function(v,'"use strict";return ('+s+');');}catch(e){throw Error('Please check the formula (parentheses, operators).');}
+ return i=>{const y=f(i);if(typeof y!=='number'||!Number.isFinite(y))throw Error(`The formula is not finite at ${v} = ${i}.`);return y;};
+}
+
+// Compute the tested terms and, for each N, the max and min of the tail a_N, ..., a_M.
+function computeData(raw,mode,M){
+ const f=compileExpr(raw,mode==='sum'?'k':'n');
+ const vals=new Float64Array(M+1);
+ let sum=0;
+ for(let i=1;i<=M;i++){const t=f(i);if(mode==='sum'){sum+=t;vals[i]=sum;}else vals[i]=t;}
+ const sufMax=new Float64Array(M+2),sufMin=new Float64Array(M+2),iMax=new Int32Array(M+2),iMin=new Int32Array(M+2);
+ sufMax[M+1]=-Infinity;sufMin[M+1]=Infinity;
+ for(let i=M;i>=1;i--){
+  if(vals[i]>=sufMax[i+1]){sufMax[i]=vals[i];iMax[i]=i;}else{sufMax[i]=sufMax[i+1];iMax[i]=iMax[i+1];}
+  if(vals[i]<=sufMin[i+1]){sufMin[i]=vals[i];iMin[i]=i;}else{sufMin[i]=sufMin[i+1];iMin[i]=iMin[i+1];}
+ }
+ return {vals,M,sufMax,sufMin,iMax,iMin};
+}
+
+// Vertical range is set from the visible terms and changes only when the sequence changes.
+function calcRange(vals){
+ let min=Infinity,max=-Infinity;
+ for(let n=1;n<=VISIBLE;n++){min=Math.min(min,vals[n]);max=Math.max(max,vals[n]);}
+ const span=max-min;
+ if(span<0.2){min-=0.5;max+=0.5;}else{min-=span*0.12;max+=span*0.12;}
+ return [min,max];
+}
+
+// ---------- Formatting helpers ----------
+function fmt(x){if(x===0)return '0';const a=Math.abs(x);return (a>=1e-4&&a<1e6)?String(Number(x.toPrecision(4))):x.toExponential(2);}
+function fmtInt(n){return n.toLocaleString('en-US');}
+const SUB='₀₁₂₃₄₅₆₇₈₉';
+function sub(n){return String(n).replace(/\d/g,d=>SUB[d]);}
+function axisTicks(min,max){
+ const span=max-min;
+ const choices=[0.01,0.02,0.05,0.1,0.2,0.25,0.5,1,2,5,10,20,25,50,100,200,500,1000];
+ const step=choices.find(v=>span/v<=8)||Math.pow(10,Math.ceil(Math.log10(span/6)));
+ const ticks=[];
+ for(let k=Math.ceil((min-1e-10)/step);k<=Math.floor((max+1e-10)/step)&&ticks.length<14;k++)ticks.push(k*step);
+ return ticks;
+}
+function tickLabel(x){if(Math.abs(x)<1e-9)return '0';return String(Number(x.toFixed(4)));}
+function sizeCanvas(canvas,ctx){
+ const r=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+ canvas.width=Math.max(1,Math.round(r.width*dpr));canvas.height=Math.max(1,Math.round(r.height*dpr));
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ return {w:r.width,h:r.height};
+}
+
+// ---------- Left graph: the sequence ----------
+function paintSeq(eps,N,sym){
+ const ctx=seqCtx,{w,h}=sizeCanvas(seqCanvas,ctx);
+ const p={left:56,right:16,top:22,bottom:40},gw=w-p.left-p.right,gh=h-p.top-p.bottom;
+ const [ymin,ymax]=fixedRange,y=v=>p.top+(ymax-v)/(ymax-ymin)*gh,x=n=>p.left+(n-1)/(VISIBLE-1)*gw;
+ const v=data.vals;
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+ ctx.save();ctx.beginPath();ctx.rect(p.left,p.top,gw,gh);ctx.clip();
+ for(const t of axisTicks(ymin,ymax)){ctx.strokeStyle='#e7ecf2';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.left,y(t));ctx.lineTo(p.left+gw,y(t));ctx.stroke();}
+ const tailVisible=N<=VISIBLE;
+ let hi=0,lo=0,pass=false;
+ if(N<=data.M){hi=data.sufMax[N];lo=data.sufMin[N];pass=hi-lo<eps;}
+ if($('showWindow').checked&&tailVisible){
+  const x0=Math.max(p.left,x(N)-6),col=pass?'47,158,95':'212,71,75';
+  ctx.fillStyle=`rgba(${col},.15)`;ctx.fillRect(x0,y(hi),p.left+gw-x0,y(lo)-y(hi));
+  ctx.strokeStyle=`rgb(${col})`;ctx.lineWidth=1.3;
+  for(const t of [hi,lo]){ctx.beginPath();ctx.moveTo(x0,y(t));ctx.lineTo(p.left+gw,y(t));ctx.stroke();}
+  // ε-window starts at the smallest tail value, so it stays on screen even when the tail escapes upward.
+  const base=lo<fixedRange[0]&&hi<=fixedRange[1]?hi-eps:lo;
+  ctx.strokeStyle='#2e69a8';ctx.lineWidth=2;ctx.setLineDash([7,5]);
+  for(const t of [base,base+eps]){ctx.beginPath();ctx.moveTo(x0,y(t));ctx.lineTo(p.left+gw,y(t));ctx.stroke();}
+  ctx.setLineDash([]);
+ }
+ if(tailVisible){ctx.strokeStyle='#238f55';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x(N),p.top);ctx.lineTo(x(N),p.top+gh);ctx.stroke();}
+ for(let n=1;n<=VISIBLE;n++){ctx.fillStyle=n<N?'#8993a0':'#2762ad';ctx.beginPath();ctx.arc(x(n),y(v[n]),3.8,0,Math.PI*2);ctx.fill();}
+ // Ring the terms where the tail reaches its largest and smallest values (if they are on screen).
+ if($('showWindow').checked&&N<=data.M){
+  ctx.strokeStyle=pass?'#2f9e5f':'#d4474b';ctx.lineWidth=2;
+  for(const i of [data.iMax[N],data.iMin[N]])if(i<=VISIBLE){ctx.beginPath();ctx.arc(x(i),y(v[i]),7,0,Math.PI*2);ctx.stroke();}
+ }
+ // Selected pair from the grid.
+ if(selected){
+  const bx=p.left+gw-12;
+  ctx.strokeStyle='#e08a00';ctx.lineWidth=1.3;ctx.setLineDash([3,3]);
+  for(const i of [selected.m,selected.n]){ctx.beginPath();ctx.moveTo(x(i),y(v[i]));ctx.lineTo(bx,y(v[i]));ctx.stroke();}
+  ctx.setLineDash([]);ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(bx,y(v[selected.m]));ctx.lineTo(bx,y(v[selected.n]));ctx.stroke();
+  ctx.lineWidth=2.5;
+  for(const i of [selected.m,selected.n]){ctx.beginPath();ctx.arc(x(i),y(v[i]),7.5,0,Math.PI*2);ctx.stroke();}
+ }
+ ctx.restore();
+ ctx.strokeStyle='#8191a4';ctx.lineWidth=1;ctx.strokeRect(p.left,p.top,gw,gh);
+ ctx.font='13px Arial';ctx.fillStyle='#4f5d70';ctx.textAlign='right';ctx.textBaseline='middle';
+ for(const t of axisTicks(ymin,ymax))ctx.fillText(tickLabel(t),p.left-7,y(t));
+ ctx.textAlign='center';ctx.textBaseline='top';
+ for(const n of [1,10,20,30,40,50,60])ctx.fillText(String(n),x(n),p.top+gh+7);
+ ctx.fillText('n',p.left+gw/2,h-16);
+ // If the tested tail goes beyond the visible window, say so at the edge.
+ if($('showWindow').checked&&tailVisible){
+  ctx.font='bold 12px Arial';ctx.fillStyle='#b23a3e';
+  if(hi>ymax){ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(`▲ tail reaches ${fmt(hi)} at n = ${fmtInt(data.iMax[N])}`,p.left+gw,p.top-3);}
+  if(lo<ymin){ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(`▼ tail reaches ${fmt(lo)} at n = ${fmtInt(data.iMin[N])}`,p.left+gw,h-3);}
+ }
+}
+
+// ---------- Right graph: grid of pairs ----------
+function paintGrid(eps,N){
+ const ctx=gridCtx,{w,h}=sizeCanvas(gridCanvas,ctx);
+ const p={left:46,right:14,top:22,bottom:40};
+ const s=Math.max(10,Math.min(w-p.left-p.right,h-p.top-p.bottom));
+ const K=gridSize(),ox=p.left+(w-p.left-p.right-s)/2,oy=p.top+(h-p.top-p.bottom-s)/2,cell=s/K;
+ gridGeom={ox,oy,cell,s,K};
+ const v=data.vals;
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+ for(let m=1;m<=K;m++)for(let n=1;n<=K;n++){
+  const good=Math.abs(v[m]-v[n])<eps,tail=m>=N&&n>=N;
+  ctx.fillStyle=tail?(good?'#2f9e5f':'#d4474b'):(good?'#d5ecdd':'#f5d7d7');
+  ctx.fillRect(ox+(n-1)*cell,oy+(K-m)*cell,cell+0.6,cell+0.6);
+ }
+ // Thin white lines between squares when they are big enough to separate.
+ if(cell>=10){
+  ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.beginPath();
+  for(let i=1;i<K;i++){ctx.moveTo(ox+i*cell,oy);ctx.lineTo(ox+i*cell,oy+s);ctx.moveTo(ox,oy+i*cell);ctx.lineTo(ox+s,oy+i*cell);}
+  ctx.stroke();
+ }
+ if(N<=K){
+  ctx.strokeStyle='#1b2533';ctx.lineWidth=2.5;
+  ctx.strokeRect(ox+(N-1)*cell,oy,(K-N+1)*cell,(K-N+1)*cell);
+ }
+ if(selected){
+  ctx.strokeStyle='#e08a00';ctx.lineWidth=3;
+  ctx.strokeRect(ox+(selected.n-1)*cell-1,oy+(K-selected.m)*cell-1,cell+2,cell+2);
+ }
+ ctx.strokeStyle='#8191a4';ctx.lineWidth=1;ctx.strokeRect(ox,oy,s,s);
+ ctx.font='13px Arial';ctx.fillStyle='#4f5d70';
+ const step=K<=20?1:K<=40?5:10;
+ const ticks=[1];for(let t=step;t<=K;t+=step)if(t>1)ticks.push(t);
+ ctx.textAlign='center';ctx.textBaseline='top';
+ for(const n of ticks)ctx.fillText(String(n),ox+(n-0.5)*cell,oy+s+7);
+ ctx.fillText('n',ox+s/2,oy+s+23);
+ ctx.textAlign='right';ctx.textBaseline='middle';
+ for(const m of ticks)ctx.fillText(String(m),ox-7,oy+(K-m+0.5)*cell);
+ ctx.fillText('m',ox-30,oy+s/2);
+ if(N>K){
+  ctx.font='bold 14px Arial';ctx.fillStyle='#1b2533';ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText(`N = ${fmtInt(N)} is beyond this grid`,ox+s/2,oy-4);
+ }
+}
+function gridSize(){return Math.max(5,Math.min(VISIBLE,Math.round(Number($('kNumber').value)||15)));}
+
+// ---------- Main update ----------
+function syncLabels(){
+ const sum=$('mode').value==='sum';
+ $('exprLabel').textContent=sum?'Term aₖ (in terms of k)':'Sequence aₙ (in terms of n)';
+ $('exprHelp').textContent=sum?'The graphs show the partial sums sₙ = a₁ + ⋯ + aₙ. Examples: 1/k^2, 1/k, (-1)^(k+1)/k.':'Examples: 1/n, (-1)^n/n, sin(n)/n, sqrt(n). Use ^ for powers.';
+ $('seqTitle').textContent=sum?'Partial sums sₙ':'Sequence terms aₙ';
+}
+function setN(N){$('nNumber').value=N;$('nSlider').value=Math.min(Number($('nSlider').max),N);}
+
+function update(){
+ try{
+  const raw=$('expr').value,mode=$('mode').value,M=Number($('tested').value),sym=mode==='sum'?'s':'a';
+  const key=raw+'|'+mode+'|'+M;
+  if(key!==dataKey){data=computeData(raw,mode,M);dataKey=key;}
+  const rk=raw+'|'+mode;
+  if(rk!==rangeKey){fixedRange=calcRange(data.vals);rangeKey=rk;}
+  const eps=Number($('epsNumber').value);
+  if(!Number.isFinite(eps)||eps<=0)throw Error('ε must be a positive number.');
+  let N=Math.max(1,Math.floor(Number($('nNumber').value)||1));
+  const auto=$('smallest').checked;
+  if(auto){N=1;while(N<M&&data.sufMax[N]-data.sufMin[N]>=eps)N++;setN(N);}
+  for(const id of ['nNumber','nSlider','nPlus'])$(id).disabled=auto;
+  $('nMinus').disabled=auto||N<=1;
+
+  const A=`${sym}ₘ`,B=`${sym}ₙ`;
+  let msg;
+  if(N>M){
+   msg=`N = ${fmtInt(N)} is larger than the number of tested terms.`;
+  }else{
+   const spread=data.sufMax[N]-data.sufMin[N];
+   if(auto){
+    msg=`Smallest N that works for the first ${fmtInt(M)} terms: <b>N = ${fmtInt(N)}</b>.`;
+   }else if(spread<eps){
+    msg=`✓ Every pair with ${fmtInt(N)} ≤ m, n ≤ ${fmtInt(M)} satisfies |${A} − ${B}| &lt; ε. Largest gap: ${fmt(spread)}.`;
+   }else{
+    const i=data.iMax[N],j=data.iMin[N],m=Math.min(i,j),n=Math.max(i,j);
+    msg=`✗ m = ${fmtInt(m)}, n = ${fmtInt(n)} gives |${A} − ${B}| = ${fmt(spread)} ≥ ε${n>VISIBLE?' (beyond the graphs)':''}.`;
+   }
+  }
+  msg+=`<br><small>${auto?'Testing more terms can require a larger N. ':''}Only finitely many pairs are tested, so this cannot prove that a sequence is Cauchy.</small>`;
+  $('status').className='status';$('status').innerHTML=msg;
+
+  const ro=$('readout');
+  if(selected){
+   const {m,n}=selected,v=data.vals,d=Math.abs(v[m]-v[n]),ok=d<eps;
+   ro.className='readout '+(ok?'ok':'bad');
+   ro.textContent=`${sym}${sub(m)} = ${fmt(v[m])},  ${sym}${sub(n)} = ${fmt(v[n])},  |${sym}${sub(m)} − ${sym}${sub(n)}| = ${fmt(d)} ${ok?'< ε':'≥ ε'}`;
+  }else{ro.className='readout';ro.textContent='Click a square to compare two terms.';}
+
+  paintSeq(eps,N,sym);
+  paintGrid(eps,N);
+ }catch(e){$('status').className='status error';$('status').textContent=e.message;}
+}
+
+// ---------- Controls ----------
+function bind(slider,number,cb){
+ slider.addEventListener('input',()=>{number.value=slider.value;cb();});
+ number.addEventListener('input',()=>{const v=Number(number.value);if(Number.isFinite(v)){slider.value=String(Math.max(Number(slider.min),Math.min(Number(slider.max),v)));cb();}});
+}
+bind($('epsSlider'),$('epsNumber'),update);
+bind($('nSlider'),$('nNumber'),update);
+// Grid size: a selected square outside the new grid is cleared.
+function gridChanged(){const K=gridSize();if(selected&&(selected.m>K||selected.n>K))selected=null;update();}
+bind($('kSlider'),$('kNumber'),gridChanged);
+for(const [id,step] of [['kMinus',-1],['kPlus',1]])$(id).addEventListener('click',()=>{
+ const K=Math.max(5,Math.min(VISIBLE,gridSize()+step));$('kNumber').value=K;$('kSlider').value=K;gridChanged();});
+for(const [id,step] of [['nMinus',-1],['nPlus',1]])$(id).addEventListener('click',()=>{
+ if($('smallest').checked)return;
+ setN(Math.max(1,Math.floor(Number($('nNumber').value)||1)+step));update();});
+
+const presetSel=$('preset');
+presetSel.add(new Option('Choose an example…',''));
+PRESETS.forEach((p,i)=>presetSel.add(new Option(p.label,String(i))));
+presetSel.addEventListener('change',()=>{
+ const p=PRESETS[Number(presetSel.value)];if(!p)return;
+ $('mode').value=p.mode;$('expr').value=p.expr;selected=null;
+ if(!$('smallest').checked)setN(10);
+ syncLabels();update();
+});
+$('mode').addEventListener('change',()=>{
+ // Switch the variable name so the same formula keeps working.
+ const toSum=$('mode').value==='sum';
+ $('expr').value=$('expr').value.replace(toSum?/\bn\b/g:/\bk\b/g,toSum?'k':'n');
+ presetSel.value='';syncLabels();update();
+});
+$('expr').addEventListener('input',()=>{presetSel.value='';update();});
+$('tested').addEventListener('change',update);
+$('smallest').addEventListener('change',update);
+$('showWindow').addEventListener('change',update);
+gridCanvas.addEventListener('click',e=>{
+ if(!gridGeom)return;
+ const r=gridCanvas.getBoundingClientRect(),gx=e.clientX-r.left,gy=e.clientY-r.top,{ox,oy,cell,K}=gridGeom;
+ const n=Math.floor((gx-ox)/cell)+1,m=K-Math.floor((gy-oy)/cell);
+ if(n<1||n>K||m<1||m>K)return;
+ selected=(selected&&selected.m===m&&selected.n===n)?null:{m,n};
+ update();
+});
+window.addEventListener('resize',update);
+presetSel.value='0';syncLabels();update();
+</script>
+</body>
+</html>

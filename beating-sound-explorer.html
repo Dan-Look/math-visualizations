@@ -1,0 +1,82 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Beating Sound Explorer</title><style>
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f3f7fb;color:#1e3446}header{padding:12px 22px 6px}h1{font-size:24px;margin:0}header p{margin:3px 0;color:#5b6f80;font-size:13px}.layout{display:grid;grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:12px;padding:8px 14px;max-width:1600px;margin:auto;align-items:start}.panel{background:white;border:1px solid #dce5ed;border-radius:12px;padding:15px;box-shadow:0 2px 8px #15304710}.controls{display:flex;flex-direction:column;gap:15px}.control label{display:block;font-weight:650;font-size:14px;margin-bottom:7px}.freq{display:flex;align-items:center;gap:8px}.freq input[type=range]{min-width:0;flex:1}input[type=range]{accent-color:#1676b0}input[type=number]{width:76px;border:1px solid #b6c5d0;border-radius:6px;padding:6px;font-size:15px}.actions{display:flex;flex-wrap:wrap;gap:7px}button{border:0;background:#176d9d;color:white;border-radius:8px;padding:9px 11px;font-size:14px;cursor:pointer}button.secondary{background:#e0edf5;color:#205b7d}button:disabled{opacity:.45}.checks{display:flex;flex-wrap:wrap;gap:13px;font-size:14px}.checks label{display:flex;align-items:center;gap:5px}.volume{display:flex;align-items:center;gap:8px;font-size:14px}.volume input{flex:1;min-width:0}.muted{font-size:13px;color:#5b6f80;line-height:1.4;margin:5px 0}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:10px}.stat{border-radius:9px;background:#edf5fa;padding:10px}.stat small{font-size:12px;color:#526a7c;display:block}.big{font-size:clamp(17px,2vw,25px);font-weight:750;color:#126b9b}.graphhead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}h2{font-size:18px;margin:0}canvas{display:block;width:100%;height:clamp(280px,56vh,650px);background:#f8fbfe;border-radius:8px}.hint{font-size:12px;color:#667d8d;margin:9px 0 0}.bottom{padding:0 14px 16px;max-width:1600px;margin:auto}.bottom details{background:#fff;border:1px solid #dce5ed;border-radius:10px;padding:10px 15px;font-size:13px;color:#465e70}.bottom summary{cursor:pointer;font-weight:650}@media(max-width:780px){.layout{grid-template-columns:1fr}.controls{gap:10px}canvas{height:36vh;min-height:230px}.stats{margin-top:0}header{padding:12px 14px 4px}}@media(min-width:781px){.layout{height:calc(100dvh - 94px);min-height:480px}.visual{height:100%;display:flex;flex-direction:column}.visual canvas{flex:1;min-height:220px;height:auto}.controls{position:sticky;top:8px}}
+</style></head><body><header><a href="index.html" style="display:inline-block;align-self:flex-start;margin:0 0 6px;font:600 13px Arial,Helvetica,sans-serif;color:#2762ad;text-decoration:none">← All visualizations</a><h1>Beating Sound Explorer</h1><p>Change two frequencies, listen to their interference, and watch the amplitude envelope.</p></header>
+<main class="layout"><section class="panel controls" aria-label="Sound controls">
+<div class="control"><label for="f1">Tone 1 frequency</label><div class="freq"><input id="f1" type="range" min="100" max="1000" step="1" value="440"><input id="f1n" type="number" min="50" max="2000" step="1" value="440"><span>Hz</span></div></div>
+<div class="control"><label for="f2">Tone 2 frequency</label><div class="freq"><input id="f2" type="range" min="100" max="1000" step="1" value="444"><input id="f2n" type="number" min="50" max="2000" step="1" value="444"><span>Hz</span></div></div>
+<div class="actions"><button id="play">▶ Play both</button><button id="stop" class="secondary" disabled>■ Stop</button><button id="test" class="secondary">🔊 Test tone</button></div>
+<div class="checks"><label><input id="tone1" type="checkbox" checked> Tone 1</label><label><input id="tone2" type="checkbox" checked> Tone 2</label></div>
+<label class="volume">Volume <input id="volume" type="range" min="0" max="100" value="35"></label>
+<p id="audioStatus" class="muted" role="status">Audio stopped.</p>
+<p class="muted">Try 440 and 444 Hz, then bring the second frequency toward 440 Hz.</p>
+</section><section class="panel visual"><div class="graphhead"><h2>Combined waveform &amp; beat envelope</h2></div>
+<div class="stats"><div class="stat"><small>Difference</small><div id="diff" class="big">4 Hz</div></div><div class="stat"><small>Beat frequency</small><div id="beat" class="big">4 beats/s</div></div><div class="stat"><small>Beat period</small><div id="period" class="big">0.250 s</div></div></div>
+<canvas id="plot" aria-label="Combined waveform and beat envelope"></canvas><p id="explain" class="hint"></p><p class="hint">The fast carrier is slowed visually for readability; the envelope and audible frequencies use the selected values.</p>
+</section></main><div class="bottom"><details><summary>Classroom experiments &amp; mathematics</summary><p>440 + 442 Hz: 2 beats/s. 440 + 448 Hz: 8 beats/s. 440 + 440 Hz: steady amplitude.</p><p>sin(2πf₁t) + sin(2πf₂t) = 2 sin(π(f₁+f₂)t) cos(π(f₁−f₂)t).</p><p>Beating is interference, not mechanical resonance.</p></details></div>
+<script>
+const $=id=>document.getElementById(id);
+let ctx=null,osc1=null,osc2=null,gain1=null,gain2=null,master=null,playing=false;
+function val(id){return Number($(id).value)}
+function sync(name){const slider=$(name),number=$(name+'n');slider.addEventListener('input',()=>{number.value=slider.value;update()});number.addEventListener('input',()=>{if(!number.value)return;let v=Math.max(50,Math.min(2000,Number(number.value)));slider.value=v;update()})}
+sync('f1');sync('f2');
+function update(){
+const a=val('f1n'),b=val('f2n'),d=Math.abs(a-b);
+$('diff').textContent=d.toFixed(1)+' Hz';$('beat').textContent=d.toFixed(1)+' beats/s';
+$('period').textContent=d===0?'—':(1/d).toFixed(3)+' s';
+$('explain').textContent=d===0?'The two tones coincide: the combined amplitude is steady, so there are no beats.':d<15?'Listen for '+d.toFixed(1)+' loudness pulses per second.':'At this difference, individual beats become harder to distinguish; you may hear roughness or separate pitches.';
+if(osc1){osc1.frequency.setTargetAtTime(a,ctx.currentTime,.012);osc2.frequency.setTargetAtTime(b,ctx.currentTime,.012)}
+setGains();draw();
+}
+function setGains(){
+if(!ctx||!gain1)return;
+const t=ctx.currentTime;
+gain1.gain.setTargetAtTime($('tone1').checked?1:0,t,.012);
+gain2.gain.setTargetAtTime($('tone2').checked?1:0,t,.012);
+master.gain.setTargetAtTime(val('volume')/100*.22,t,.02);
+}
+async function play(){
+if(playing)return;
+const AC=window.AudioContext||window.webkitAudioContext;
+if(!AC){alert('This browser does not support Web Audio.');return}
+ctx=ctx||new AC();await ctx.resume();
+master=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);
+gain1=ctx.createGain();gain2=ctx.createGain();gain1.connect(master);gain2.connect(master);
+osc1=ctx.createOscillator();osc2=ctx.createOscillator();
+osc1.type='sine';osc2.type='sine';osc1.frequency.value=val('f1n');osc2.frequency.value=val('f2n');
+osc1.connect(gain1);osc2.connect(gain2);osc1.start();osc2.start();
+playing=true;setGains();$('audioStatus').textContent='Audio playing ('+ctx.state+').';$('play').disabled=true;$('stop').disabled=false;
+}
+function stop(){
+if(!playing)return;
+master.gain.setTargetAtTime(0,ctx.currentTime,.01);
+const a=osc1,b=osc2;
+setTimeout(()=>{try{a.stop();b.stop();a.disconnect();b.disconnect()}catch(e){}},90);
+osc1=osc2=null;playing=false;$('audioStatus').textContent='Audio stopped.';$('play').disabled=false;$('stop').disabled=true;
+}
+$('play').onclick=()=>play().catch(e=>{$('audioStatus').textContent='Audio error: '+e.message});$('stop').onclick=stop;
+$('test').onclick=async()=>{try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error('Web Audio not supported');const c=ctx||new AC();ctx=c;await c.resume();const o=c.createOscillator(),g=c.createGain();o.frequency.value=440;g.gain.value=0;o.connect(g);g.connect(c.destination);const t=c.currentTime;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.16,t+.04);g.gain.setValueAtTime(.16,t+.7);g.gain.linearRampToValueAtTime(0,t+.85);o.start(t);o.stop(t+.9);$('audioStatus').textContent='Test tone triggered; audio context: '+c.state+'.';}catch(e){$('audioStatus').textContent='Test error: '+e.message}};
+['tone1','tone2','volume'].forEach(id=>$(id).addEventListener('input',()=>{setGains();draw()}));
+function draw(){
+const c=$('plot'),dpr=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);
+const g=c.getContext('2d');g.scale(dpr,dpr);
+g.clearRect(0,0,w,h);
+const a=val('f1n'),b=val('f2n'),delta=Math.abs(a-b),T=2,mid=h/2,scale=h*.38;
+g.strokeStyle='#d5e2ea';g.lineWidth=1;
+for(let j=0;j<=4;j++){let x=j*w/4;g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke();g.fillStyle='#65798a';g.font='12px system-ui';g.fillText((j*T/4).toFixed(1)+'s',x+3,h-8)}
+g.beginPath();g.moveTo(0,mid);g.lineTo(w,mid);g.stroke();
+const on1=$('tone1').checked,on2=$('tone2').checked;
+function envelope(t){return on1&&on2?Math.abs(Math.cos(Math.PI*delta*t)):on1||on2?.5:0}
+g.fillStyle='#c8e7fa88';g.beginPath();
+for(let i=0;i<=w;i++){let t=i/w*T,y=mid-scale*envelope(t);if(i===0)g.moveTo(i,y);else g.lineTo(i,y)}
+for(let i=w;i>=0;i--){let t=i/w*T;g.lineTo(i,mid+scale*envelope(t))}
+g.closePath();g.fill();
+g.strokeStyle='#1687c3';g.lineWidth=2;
+for(const sign of [-1,1]){g.beginPath();for(let i=0;i<=w;i++){let t=i/w*T,y=mid+sign*scale*envelope(t);if(i===0)g.moveTo(i,y);else g.lineTo(i,y)}g.stroke()}
+g.strokeStyle='#263e51';g.lineWidth=1.3;g.beginPath();
+const carrier=13;
+for(let i=0;i<=w;i++){let t=i/w*T;let y=mid-scale*((on1?Math.sin(2*Math.PI*(carrier-delta/2)*t):0)+(on2?Math.sin(2*Math.PI*(carrier+delta/2)*t):0))/2;if(i===0)g.moveTo(i,y);else g.lineTo(i,y)}g.stroke();
+}
+window.addEventListener('resize',draw);update();
+</script>
+</body></html>

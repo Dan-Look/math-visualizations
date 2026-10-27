@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sequence Convergence Explorer</title>
+<style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#243044;background:#f5f7fb}*{box-sizing:border-box}body{margin:0;padding:24px}h1{margin:0 0 8px;font-size:27px}p.lead{margin:0 0 20px;color:#536174}.layout{display:grid;grid-template-columns:350px minmax(0,1fr);gap:18px;align-items:start}.card{background:white;border:1px solid #dce3ec;border-radius:12px;padding:19px;box-shadow:0 2px 9px #2233440b}.field{margin:0 0 18px}.field label{display:block;font-weight:700;margin-bottom:7px}.field input[type=text],.field input[type=number]{padding:9px 10px;border:1px solid #bdc8d6;border-radius:7px;font-size:15px;width:100%}.pair{display:grid;grid-template-columns:minmax(0,1fr) 90px;gap:9px;align-items:center}.pair input[type=range]{width:100%;accent-color:#2762ad}.n-stepper{display:flex;align-items:center;gap:7px}.n-stepper button{width:32px;height:32px;border:1px solid #bdc8d6;border-radius:7px;background:#eef3fa;color:#243044;font-size:20px;cursor:pointer}.n-stepper button:disabled{opacity:.4;cursor:default}.n-stepper input[type=range]{flex:1;min-width:0}.reveal-actions{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.reveal-actions button{padding:7px 10px;border:1px solid #bdc8d6;border-radius:7px;background:#eef3fa;cursor:pointer}.reveal-actions button:disabled{opacity:.45;cursor:default}.reveal-panel{border-top:1px solid #dce3ec;margin-top:15px;padding-top:12px}.reveal-panel h2{font-size:16px;margin:0 0 8px}.reveal-panel .field{margin-bottom:10px}.check{display:flex;gap:8px;align-items:center;margin:10px 0 17px}.check input{width:17px;height:17px}.help{font-size:12px;color:#66778a;margin-top:5px;line-height:1.4}.status{padding:11px;border-radius:7px;background:#edf4ff;color:#244a77;font-size:14px;line-height:1.5}.status.error{background:#ffeded;color:#a52a2a}.graph-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}.graph-head h2{font-size:19px;margin:0}.legend{font-size:12px;color:#536174}.legend span{margin-left:11px;white-space:nowrap}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}.gray{background:#8993a0}.green{background:#24975b}.red{background:#cf3c40}canvas{display:block;width:100%;height:480px;border:1px solid #e0e5ed;border-radius:7px}.graph-footer{font-size:13px;color:#58687a;margin-top:11px;line-height:1.5}@media(max-width:850px){body{padding:14px}.layout{grid-template-columns:1fr}canvas{height:390px}}
+
+/* Compact the controls to match the existing graph height; graph dimensions unchanged. */
+@media (min-width:851px){
+  body{padding:14px 20px}
+  h1{font-size:24px;margin-bottom:3px}
+  p.lead{font-size:13px;margin-bottom:10px}
+  .layout{gap:14px}
+  .card{padding:12px 14px}
+  .field{margin-bottom:9px}
+  .field label{font-size:13px;margin-bottom:3px}
+  .field input[type=text],.field input[type=number]{padding:5px 8px;font-size:14px}
+  .pair{gap:7px;grid-template-columns:minmax(0,1fr) 70px}
+  .n-stepper{gap:5px}
+  .n-stepper button{width:26px;height:26px;font-size:17px}
+  .check{font-size:13px;margin:5px 0;gap:6px;line-height:1.2}
+  .check input{width:15px;height:15px;flex:none;margin:0}
+  .help{font-size:11px;margin-top:3px;line-height:1.25}
+  .reveal-panel{margin-top:8px;padding-top:7px}
+  .reveal-panel h2{font-size:14px;margin-bottom:4px}
+  .reveal-panel .field{margin-bottom:7px}
+  .reveal-actions{margin:5px 0;gap:5px}
+  .reveal-actions button{padding:5px 8px;font-size:12px}
+  .status{padding:7px 9px;font-size:12px;line-height:1.3;margin-top:7px}
+}
+@media (min-width:851px) and (max-height:760px){
+  .reveal-panel>.help{display:none}
+  .field:first-child>.help{font-size:10px}
+  .graph-footer{font-size:11px;line-height:1.3}
+}
+</style>
+</head>
+<body>
+<a href="index.html" style="display:inline-block;align-self:flex-start;margin:0 0 6px;font:600 13px Arial,Helvetica,sans-serif;color:#2762ad;text-decoration:none">← All visualizations</a>
+<h1>Sequence Convergence Explorer</h1>
+<p class="lead">Explore the definition of convergence: for every ε &gt; 0, there is an N such that |aₙ − L| &lt; ε whenever n ≥ N.</p>
+<div class="layout">
+<section class="card">
+<div class="field"><label for="sequence">Sequence aₙ (in terms of n)</label><input id="sequence" type="text" value="(3*n+5)/(n^2)" spellcheck="false"><div class="help">Examples: 1/n, (-1)^n, (-1)^n/n, 2+1/n, sin(n)/n. Use ^ for powers.</div></div>
+<div class="field"><label for="limitNumber">Proposed limit L</label><div class="pair"><input id="limitSlider" type="range" min="-10" max="10" step="0.05" value="0"><input id="limitNumber" type="number" step="any" value="0"></div></div>
+<div class="field"><label for="epsilonNumber">Tolerance ε</label><div class="pair"><input id="epsilonSlider" type="range" min="0.05" max="5" step="0.05" value="0.5"><input id="epsilonNumber" type="number" min="0.000001" step="any" value="0.5"></div></div>
+<div class="field"><label for="nNumber">Starting index N</label><div class="pair"><div class="n-stepper"><button id="nMinus" type="button" aria-label="Decrease N by one">−</button><input id="nSlider" type="range" min="1" max="200" step="1" value="10"><button id="nPlus" type="button" aria-label="Increase N by one">+</button></div><input id="nNumber" type="number" min="1" step="1" value="10"></div></div>
+<label class="check"><input type="checkbox" id="smallest"> Find smallest N automatically</label>
+<label class="check"><input type="checkbox" id="showNMarker" checked> Show N-line and gray points before N</label>
+<label class="check"><input type="checkbox" id="absoluteView"> Plot absolute values |aₙ| and |L|</label>
+<div class="reveal-panel">
+<h2>Reveal Sequence</h2>
+<div class="reveal-actions"><button type="button" id="revealPlay">▶ Reveal</button><button type="button" id="revealPause">Pause</button><button type="button" id="revealAll">Show all</button></div>
+<div class="field"><label for="revealSlider">Points shown: <span id="revealCount">70</span> / 70</label><div class="n-stepper"><button type="button" id="revealMinus" aria-label="Hide one point">−</button><input id="revealSlider" type="range" min="0" max="70" value="70" step="1"><button type="button" id="revealPlus" aria-label="Reveal one point">+</button></div></div>
+<div class="field"><label for="revealSpeed">Reveal speed: <span id="speedText">Normal</span></label><input id="revealSpeed" type="range" min="1" max="10" value="5" step="1"></div>
+<div class="help">The newest point flashes red, then returns to its convergence color. The starting index N is independent of the reveal controls.</div>
+</div><div class="status" id="status" aria-live="polite">Ready.</div>
+</section>
+<section class="card">
+<div class="graph-head"><h2>Sequence terms and ε-band</h2><div class="legend"><span><i class="dot gray"></i>n &lt; N</span><span><i class="dot green"></i>Inside</span><span><i class="dot red"></i>Outside</span></div></div>
+<canvas id="graph"></canvas><div class="graph-footer">In absolute-value mode, the graph shows |aₙ| and the band around |L|. Green vertical line: N. Green shaded strip: L ± ε. For n ≥ N, green points satisfy |aₙ − L| &lt; ε; red points do not. Use the controls to test a proposed limit.</div>
+</section>
+</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const canvas=$('graph'),ctx=canvas.getContext('2d');
+const MAX_CHECK=10000, VISIBLE=70;
+let fixedRange=null,lastFormula='';
+let revealCount=70, revealActive=false, revealTimer=null, flashIndex=0, flashTimeout=null;
+function compileSequence(raw){
+ let s=raw.trim().replace(/[−–]/g,'-').replace(/π/g,'PI').replace(/[{}]/g,c=>c==='{'?'(':')').replace(/(^|[(+\-*/,])\s*-/g,'$1(-1)*').replace(/\^/g,'**');
+ // Common classroom shorthand: 2n, 3(n+1), n(n+1), and (-1)^n.
+ s=s.replace(/(\d)(?=n\b)/gi,'$1*').replace(/\bn\s*(?=\()/gi,'n*').replace(/\)(?=\s*(?:n\b|\d|\())/gi,')*').replace(/(\d)(?=\()/g,'$1*');
+ if(!/^[\d\s.n()+\-*/%,A-Za-z]*$/.test(s))throw Error('Please enter a valid sequence expression.');
+ const names=s.match(/[A-Za-z_]+/g)||[];
+ const allowed=new Set(['n','sin','cos','tan','abs','sqrt','log','ln','exp','floor','ceil','round','PI','E','pow']);
+ if(names.some(x=>!allowed.has(x)))throw Error('Unrecognized function or variable in sequence.');
+ s=s.replace(/\b(sin|cos|tan|abs|sqrt|log|exp|floor|ceil|round|pow)\b/g,'Math.$1').replace(/\bln\b/g,'Math.log').replace(/\bPI\b/g,'Math.PI').replace(/\bE\b/g,'Math.E');
+ const f=new Function('n','"use strict";return ('+s+');');
+ return n=>{const v=f(n);if(typeof v!=='number'||!Number.isFinite(v))throw Error('Sequence is not finite at n = '+n+'.');return v;};
+}
+function bind(slider,number,callback){slider.addEventListener('input',()=>{number.value=slider.value;callback();});number.addEventListener('input',()=>{let v=Number(number.value);if(Number.isFinite(v)){slider.value=String(Math.max(Number(slider.min),Math.min(Number(slider.max),v)));callback();}});}
+function nice(x){return Number(x.toPrecision(5)).toString();}
+// Prefer integer or small-denominator fractional tick marks.
+function axisTicks(min,max){
+ const span=max-min;
+ const choices=[1/16,1/12,1/10,1/8,1/6,1/5,1/4,1/3,1/2,1,2,3,4,5,10,20,25,50,100,200,500,1000];
+ let step=choices.find(v=>span/v<=7)||Math.pow(10,Math.ceil(Math.log10(span/6)));
+ const start=Math.ceil((min-1e-10)/step);
+ const end=Math.floor((max+1e-10)/step);
+ const ticks=[];
+ for(let k=start;k<=end&&ticks.length<12;k++)ticks.push(k*step);
+ return ticks;
+}
+function fractionLabel(x){
+ if(Math.abs(x)<1e-9)return '0';
+ for(const d of [1,2,3,4,5,6,8,10,12,16]){
+  const num=Math.round(x*d);
+  if(Math.abs(x-num/d)<1e-7){
+   const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a);
+   const g=gcd(Math.abs(num),d);
+   return d/g===1?String(num/g):`${num/g}/${d/g}`;
+  }
+ }
+ return nice(x);
+}
+function calculateRange(f,L){let vals=[L];for(let n=1;n<=VISIBLE;n++){try{vals.push(f(n));}catch(e){}}
+ let min=Math.min(...vals),max=Math.max(...vals),span=max-min;
+ if(span<0.2){min-=0.5;max+=0.5;}else{min-=span*0.16;max+=span*0.16;}
+ return [min,max];}
+function paint(f,L,eps,N){
+ const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+ canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));
+ ctx.setTransform(dpr,0,0,dpr,0,0);let w=rect.width,h=rect.height;
+ ctx.clearRect(0,0,w,h);
+ const p={left:60,right:18,top:24,bottom:42},gw=w-p.left-p.right,gh=h-p.top-p.bottom;
+ const [ymin,ymax]=fixedRange;const y=v=>p.top+(ymax-v)/(ymax-ymin)*gh;
+ const x=n=>p.left+(n-1)/(VISIBLE-1)*gw;
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+ ctx.save();ctx.beginPath();ctx.rect(p.left,p.top,gw,gh);ctx.clip();
+ ctx.fillStyle='rgba(48,165,93,.13)';ctx.fillRect(p.left,y(L+eps),gw,y(L-eps)-y(L+eps));
+ for(const v of axisTicks(ymin,ymax)){ctx.strokeStyle='#e7ecf2';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.left,y(v));ctx.lineTo(p.left+gw,y(v));ctx.stroke();}
+ ctx.strokeStyle='#33945d';ctx.setLineDash([6,4]);ctx.lineWidth=1.4;for(let v of [L-eps,L+eps]){ctx.beginPath();ctx.moveTo(p.left,y(v));ctx.lineTo(p.left+gw,y(v));ctx.stroke();}ctx.setLineDash([]);
+ ctx.strokeStyle='#2e69a8';ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(p.left,y(L));ctx.lineTo(p.left+gw,y(L));ctx.stroke();
+ if($('showNMarker').checked && N<=VISIBLE){ctx.strokeStyle='#238f55';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x(N),p.top);ctx.lineTo(x(N),p.top+gh);ctx.stroke();}
+ for(let n=1;n<=Math.min(VISIBLE,revealCount);n++){let v;try{v=f(n)}catch(e){continue;}ctx.fillStyle=n===flashIndex?'#ed2424':($('showNMarker').checked && n<N)?'#8993a0':Math.abs(v-L)<eps?'#24975b':'#cf3c40';ctx.beginPath();ctx.arc(x(n),y(v),3.7,0,Math.PI*2);ctx.fill();}
+ ctx.restore();ctx.strokeStyle='#8191a4';ctx.lineWidth=1;ctx.strokeRect(p.left,p.top,gw,gh);
+ ctx.font='12px Arial';ctx.fillStyle='#4f5d70';ctx.textAlign='right';ctx.textBaseline='middle';for(const v of axisTicks(ymin,ymax)){ctx.fillText(fractionLabel(v),p.left-8,y(v));}
+ ctx.textAlign='center';ctx.textBaseline='top';for(let n of [1,10,20,30,40,50,60,70])ctx.fillText(String(n),x(n),p.top+gh+8);
+ ctx.fillText('n',p.left+gw/2,h-17);
+}
+function update(){try{
+ const raw=$('sequence').value,f=compileSequence(raw),L=Number($('limitNumber').value),eps=Number($('epsilonNumber').value);
+ if(!Number.isFinite(L)||!Number.isFinite(eps)||eps<=0)throw Error('L must be a number and ε must be positive.');
+ const absolute=$('absoluteView').checked;
+  const plotted=n=>absolute?Math.abs(f(n)):f(n);
+  const plottedL=absolute?Math.abs(L):L;
+  const rangeKey=raw+'|'+(absolute?'abs':'original');
+  if(rangeKey!==lastFormula||!fixedRange){fixedRange=calculateRange(plotted,plottedL);lastFormula=rangeKey;}
+ let N=Math.max(1,Math.floor(Number($('nNumber').value)||1));
+ let lastFailure=0;for(let n=1;n<=MAX_CHECK;n++)if(Math.abs(plotted(n)-plottedL)>=eps)lastFailure=n;
+ const candidate=lastFailure+1;
+ if($('smallest').checked){N=candidate;$('nNumber').value=N;$('nSlider').value=Math.min(Number($('nSlider').max),N);$('nNumber').disabled=true;$('nSlider').disabled=true;$('nMinus').disabled=true;$('nPlus').disabled=true;}
+ else{$('nNumber').disabled=false;$('nSlider').disabled=false;$('nMinus').disabled=N<=1;$('nPlus').disabled=false;}
+ const firstFailure=(()=>{for(let n=N;n<=MAX_CHECK;n++)if(Math.abs(plotted(n)-plottedL)>=eps)return n;return null;})();
+ let message=firstFailure===null?'✓ No failures for n ≥ '+N+' among the first '+MAX_CHECK+' terms.':'✗ The first failure at or after N = '+N+' occurs at n = '+firstFailure+'.';
+ if($('smallest').checked)message='Smallest N found in the first '+MAX_CHECK+' terms: '+candidate+'. '+(lastFailure===0?'Every tested term lies in the band.':'Last failure occurs at n = '+lastFailure+'.');
+ message+='<br><small>'+(absolute?'Absolute-value view tests ||aₙ| − |L|| &lt; ε. This is not equivalent to |aₙ − L| &lt; ε for arbitrary signed sequences. ':'')+'Finite numerical testing illustrates convergence; it does not prove it.</small>';
+ $('status').className='status';$('status').innerHTML=message;
+ $('revealCount').textContent=revealCount; $('revealSlider').value=revealCount;
+ $('revealMinus').disabled=revealCount===0; $('revealPlus').disabled=revealCount===VISIBLE;
+ paint(plotted,plottedL,eps,N);
+ }catch(e){$('status').className='status error';$('status').textContent=e.message;}}
+function stopReveal(){revealActive=false;clearTimeout(revealTimer);revealTimer=null;$('revealPlay').textContent='▶ Reveal';}
+function setReveal(count,flash=true){
+ revealCount=Math.max(0,Math.min(VISIBLE,Math.round(count)));
+ clearTimeout(flashTimeout);flashIndex=flash&&revealCount>0?revealCount:0;
+ update();
+ if(flashIndex){const current=flashIndex;flashTimeout=setTimeout(()=>{if(flashIndex===current){flashIndex=0;update();}},Math.min(420,Math.round(850/Number($('revealSpeed').value))));}
+}
+function revealDelay(){return Math.round(1400/Number($('revealSpeed').value));}
+function tickReveal(){
+ if(!revealActive)return;
+ if(revealCount>=VISIBLE){stopReveal();return;}
+ setReveal(revealCount+1,true);
+ revealTimer=setTimeout(tickReveal,revealDelay());
+}
+$('revealPlay').addEventListener('click',()=>{stopReveal();setReveal(0,false);revealActive=true;$('revealPlay').textContent='↻ Restart';tickReveal();});
+$('revealPause').addEventListener('click',()=>{if(revealActive){stopReveal();$('revealPause').textContent='Resume';}else if(revealCount<VISIBLE){revealActive=true;$('revealPause').textContent='Pause';$('revealPlay').textContent='↻ Restart';tickReveal();}});
+$('revealAll').addEventListener('click',()=>{stopReveal();$('revealPause').textContent='Pause';setReveal(VISIBLE,false);});
+$('revealSlider').addEventListener('input',()=>{stopReveal();$('revealPause').textContent='Resume';setReveal(Number($('revealSlider').value));});
+for(const [id,step] of [['revealMinus',-1],['revealPlus',1]])$(id).addEventListener('click',()=>{stopReveal();$('revealPause').textContent='Resume';setReveal(revealCount+step);});
+$('revealSpeed').addEventListener('input',()=>{$('speedText').textContent=Number($('revealSpeed').value)<=3?'Slow':Number($('revealSpeed').value)>=8?'Fast':'Normal';});
+bind($('limitSlider'),$('limitNumber'),update);bind($('epsilonSlider'),$('epsilonNumber'),update);bind($('nSlider'),$('nNumber'),update);
+for(const [id,change] of [['nMinus',-1],['nPlus',1]])$(id).addEventListener('click',()=>{if($('smallest').checked)return;const next=Math.max(1,Math.floor(Number($('nNumber').value)||1)+change);$('nNumber').value=next;$('nSlider').value=Math.min(Number($('nSlider').max),next);update();});
+$('showNMarker').addEventListener('change',update);
+$('absoluteView').addEventListener('change',update);
+$('sequence').addEventListener('input',update);$('smallest').addEventListener('change',update);window.addEventListener('resize',update);update();
+</script>
+</body>
+</html>

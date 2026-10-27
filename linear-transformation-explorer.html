@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linear Transformation Explorer</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 10px 14px; color: #222; font-size: 13px; }
+h1 { font-size: 23px; margin: 2px 0 10px; }
+.main-layout { display: flex; gap: 14px; align-items: flex-start; }
+.controls { width: 265px; flex-shrink: 0; padding: 10px 12px; background: #f0f0f0; border-radius: 8px; }
+.controls h2 { font-size: 14px; margin: 10px 0 4px; }
+.controls h2:first-child { margin-top: 0; }
+.controls p { margin: 3px 0 5px; }
+.controls input[type="text"], .controls input[type="number"] { width: 125px; max-width: 100%; box-sizing: border-box; font-size: 13px; padding: 3px 5px; }
+.controls input[type="range"] { width: 100%; margin: 2px 0; height: 14px; }
+.controls input[type="checkbox"] { vertical-align: middle; margin: 0 4px 0 0; }
+.controls label { line-height: 1.35; }
+.controls .axis-pair { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+.controls .axis-pair input { width:65px; min-width:0; }
+.visualization { flex: 1; min-width: 0; }
+.graphs { display: flex; gap: 14px; align-items: flex-start; }
+.graph-panel { flex: 1; min-width: 0; }
+.graph-panel h2 { font-size: 16px; margin: 4px 0; }
+.graph-panel p { margin: 2px 0 6px; }
+canvas { border: 1px solid black; background: #f5f5f5; width: 100%; height: auto; box-sizing: border-box; }
+.summary { margin-top: 5px; }
+.summary h2 { font-size: 14px; margin: 4px 0 3px; }
+.summary p { margin: 3px 0; }
+.reveal-controls { margin: 0 0 9px; padding: 7px 9px; background: #eef3fa; border-radius: 7px; display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.reveal-controls button { padding: 5px 7px; cursor:pointer; font-size:12px; }
+.reveal-controls label { font-size:12px; }
+.reveal-controls input[type="range"] { width:95px; vertical-align:middle; }
+#revealStatus { font-size:12px; font-weight:bold; }
+.status { padding: 6px 8px; border-radius: 5px; font-weight: bold; margin-top: 4px; font-size:12px; }
+.status.success { background: #e4f3e4; color: #176317; }
+.status.warning { background: #fff0df; color: #8a4b00; }
+.legend { font-size: 11px; line-height: 1.35; margin-top: 5px; }
+.green-text { color: #008000; font-weight: bold; }
+.blue-text { color: #005bd1; font-weight: bold; }
+.red-text { color: #c00000; font-weight: bold; }
+.error { color: #a00000; font-size: 12px; }
+.error:empty { display:none; }
+@media (max-width: 900px) {
+  .main-layout { flex-direction: column; }
+  .controls { width: auto; }
+  .visualization { width: 100%; }
+}
+</style>
+</head>
+<body>
+<a href="index.html" style="display:inline-block;align-self:flex-start;margin:0 0 6px;font:600 13px Arial,Helvetica,sans-serif;color:#2762ad;text-decoration:none">← All visualizations</a>
+<h1>Linear Transformation Explorer</h1>
+<div class="main-layout">
+  <div class="controls">
+    <h2>Original Sequence</h2>
+    <p>a<sub>n</sub> = <input type="text" id="sequence" value="1/n"></p>
+    <h2>Limit</h2>
+    <p>L = <input type="number" id="limit" value="0" step="0.1"></p>
+    <h2>Transformation</h2>
+    <p>f(x) = <input type="text" id="transformation" value="3x+2" spellcheck="false"></p>
+    <p id="transformationError" class="error" role="alert"></p>
+    <h2>Epsilon</h2>
+    <p>ε = <input type="number" id="epsilon" value="0.5" step="0.01" min="0.01"></p>
+    <p><input type="range" id="epsilonSlider" min="0.01" max="2" step="0.01" value="0.5"></p>
+    <p><label><input type="checkbox" id="showTransformedEpsilon" checked> Show ε-band on transformed graph</label></p>
+    <h2>Delta (δ)</h2>
+    <p>δ = <input type="number" id="delta" value="0.5" step="0.01" min="0.01"></p>
+    <p><input type="range" id="deltaSlider" min="0.01" max="2" step="0.01" value="0.5"></p>
+    <p><label><input type="checkbox" id="showOriginalDelta" checked> Show δ-band on original graph</label></p>
+    <p><label><input type="checkbox" id="showTransformedDelta" checked> Show δ-band on transformed graph</label></p>
+    <p><label><input type="checkbox" id="showTolerance"> Show required tolerance</label></p>
+    <p id="requiredTolerance" style="display:none; font-size:14px;"></p>
+    <h2>Y-axis range</h2>
+    <p class="axis-pair">Y-min <input type="number" id="yMin" value="-1.5" step="0.1"> Y-max <input type="number" id="yMax" value="3.5" step="0.1"></p>
+    <p id="axisError" class="error" role="alert"></p>
+  </div>
+  <div class="visualization">
+    <div class="reveal-controls">
+      <button id="revealOriginal" type="button">▶ Reveal original</button>
+      <button id="revealPaired" type="button">▶ Reveal transformed pairs</button>
+      <button id="pauseReveal" type="button">Pause</button>
+      <button id="resetReveal" type="button">Reset / Show all</button>
+      <label>Speed (slow → fast) <input id="revealSpeed" type="range" min="150" max="1600" step="50" value="1100"> <span id="speedLabel">0.65 s/point</span></label>
+      <label>Reveal through N = <strong id="revealNLabel">50</strong> <button id="previousN" type="button" aria-label="Reveal previous term" title="Previous term">−</button> <input id="revealNSlider" type="range" min="0" max="50" step="1" value="50" style="width:170px;vertical-align:middle" aria-label="Reveal points through N"> <button id="nextN" type="button" aria-label="Reveal next term" title="Next term">+</button></label>
+      <span id="revealStatus" aria-live="polite">All 50 terms shown</span>
+    </div>
+    <div class="graphs">
+      <div class="graph-panel">
+        <h2>Original Sequence</h2>
+        <p>a<sub>n</sub> → L</p>
+        <canvas id="originalGraph" width="600" height="400"></canvas>
+      </div>
+      <div class="graph-panel">
+        <h2>Transformed Sequence</h2>
+        <p id="transformedFormula">b<sub>n</sub> = 3a<sub>n</sub> + 2</p>
+        <canvas id="transformedGraph" width="600" height="400"></canvas>
+      </div>
+    </div>
+    <hr>
+    <div class="summary">
+      <h2>Transformation Summary</h2>
+      <p id="transformedLimit"></p>
+      <div id="bandStatus" class="status"></div>
+      <div class="legend">
+        <span class="green-text">Green:</span> Original δ-band and its transformed image.<br>
+        <span class="blue-text">Blue:</span> Desired ε-band around the transformed limit.<br>
+        <span class="red-text">Red dashed line:</span> Limit of each sequence.
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const sequenceBox = document.getElementById("sequence");
+const transformationBox = document.getElementById("transformation");
+const transformationError = document.getElementById("transformationError");
+const transformedFormula = document.getElementById("transformedFormula");
+const limitBox = document.getElementById("limit");
+const epsilonBox = document.getElementById("epsilon");
+const epsilonSlider = document.getElementById("epsilonSlider");
+const showTransformedEpsilon = document.getElementById("showTransformedEpsilon");
+const showOriginalDelta = document.getElementById("showOriginalDelta");
+const showTransformedDelta = document.getElementById("showTransformedDelta");
+const deltaBox = document.getElementById("delta");
+const deltaSlider = document.getElementById("deltaSlider");
+const showToleranceBox = document.getElementById("showTolerance");
+const requiredTolerance = document.getElementById("requiredTolerance");
+const yMinBox = document.getElementById("yMin");
+const yMaxBox = document.getElementById("yMax");
+const axisError = document.getElementById("axisError");
+const originalCanvas = document.getElementById("originalGraph");
+const transformedCanvas = document.getElementById("transformedGraph");
+const originalCtx = originalCanvas.getContext("2d");
+const transformedCtx = transformedCanvas.getContext("2d");
+const transformedLimit = document.getElementById("transformedLimit");
+const bandStatus = document.getElementById("bandStatus");
+const revealOriginalButton = document.getElementById("revealOriginal");
+const revealPairedButton = document.getElementById("revealPaired");
+const pauseButton = document.getElementById("pauseReveal");
+const resetButton = document.getElementById("resetReveal");
+const speedSlider = document.getElementById("revealSpeed");
+const speedLabel = document.getElementById("speedLabel");
+const revealStatus = document.getElementById("revealStatus");
+const revealNSlider = document.getElementById("revealNSlider");
+const revealNLabel = document.getElementById("revealNLabel");
+const previousNButton = document.getElementById("previousN");
+const nextNButton = document.getElementById("nextN");
+const revealDelay = () => 1750 - Number(speedSlider.value);
+// mode: all, original, or paired. During a reveal, current term is red;
+// earlier terms are blue. The next step changes the previous term to blue.
+let revealMode = "all";
+let revealedCount = 50;
+let revealRunning = false;
+let revealTimer = null;
+const TERM_COUNT = 50;
+function stopRevealTimer() { if (revealTimer !== null) clearTimeout(revealTimer); revealTimer = null; }
+function refreshRevealStatus() {
+    revealStatus.textContent = revealMode === "all" ? "All 50 terms shown" :
+        (revealMode === "original" ? "Original" : "Paired") +
+        ": " + revealedCount + "/" + TERM_COUNT + (revealRunning ? " · playing" : " · paused");
+    revealNSlider.value = revealedCount;
+    revealNLabel.textContent = revealedCount;
+    previousNButton.disabled = revealedCount <= 0;
+    nextNButton.disabled = revealedCount >= TERM_COUNT;
+    pauseButton.textContent = revealRunning ? "Pause" : "Resume";
+    pauseButton.disabled = revealMode === "all" || (revealedCount === TERM_COUNT && !revealRunning);
+}
+function revealStep() {
+    if (!revealRunning) return;
+    if (revealedCount >= TERM_COUNT) { revealRunning = false; stopRevealTimer(); refreshRevealStatus(); redrawGraphs(); return; }
+    revealedCount++;
+    redrawGraphs();
+    refreshRevealStatus();
+    revealTimer = setTimeout(revealStep, revealDelay());
+}
+function startReveal(mode) {
+    stopRevealTimer();
+    revealMode = mode;
+    revealedCount = 0;
+    revealRunning = true;
+    refreshRevealStatus();
+    revealStep();
+}
+revealOriginalButton.addEventListener("click", () => startReveal("original"));
+revealPairedButton.addEventListener("click", () => startReveal("paired"));
+pauseButton.addEventListener("click", () => {
+    if (revealMode === "all") return;
+    revealRunning = !revealRunning;
+    stopRevealTimer();
+    if (revealRunning) {
+        if (revealedCount === TERM_COUNT) { revealRunning = false; }
+        else revealTimer = setTimeout(revealStep, revealDelay());
+    }
+    refreshRevealStatus();
+});
+resetButton.addEventListener("click", () => {
+    stopRevealTimer(); revealMode = "all"; revealedCount = TERM_COUNT; revealRunning = false;
+    refreshRevealStatus(); redrawGraphs();
+});
+speedSlider.addEventListener("input", () => {
+    speedLabel.textContent = (revealDelay() / 1000).toFixed(2) + " s/point";
+    if (revealRunning) { stopRevealTimer(); revealTimer = setTimeout(revealStep, revealDelay()); }
+});
+revealNSlider.addEventListener("input", () => {
+    stopRevealTimer();
+    revealRunning = false;
+    // Scrub whichever reveal mode was most recently used; default to pairs.
+    if (revealMode === "all") revealMode = "paired";
+    revealedCount = Number(revealNSlider.value);
+    refreshRevealStatus();
+    redrawGraphs();
+});
+function stepN(direction) {
+    stopRevealTimer();
+    revealRunning = false;
+    if (revealMode === "all") revealMode = "paired";
+    revealedCount = Math.max(0, Math.min(TERM_COUNT, revealedCount + direction));
+    refreshRevealStatus();
+    redrawGraphs();
+}
+previousNButton.addEventListener("click", () => stepN(-1));
+nextNButton.addEventListener("click", () => stepN(1));
+speedLabel.textContent = (revealDelay() / 1000).toFixed(2) + " s/point";
+refreshRevealStatus();
+
+// Parse an affine expression f(x) = cx+d. Supports 4x-2, -x+5,
+// x/2+1, 2*(x+1), (3/2)x-1, and constant expressions.
+// The parser uses arithmetic on pairs [x coefficient, constant],
+// and rejects nonlinear operations (x*x, 1/x, etc.).
+function parseTransformation(input) {
+    const source = input.replace(/\s+/g, "").replace(/−/g, "-")
+        .replace(/×/g, "*").replace(/÷/g, "/");
+    if (!source) throw new Error("Enter a transformation such as 4x-2.");
+    const tokens = source.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[xX()+*/^-]/g);
+    if (!tokens || tokens.join("") !== source) {
+        throw new Error("Use numbers, x, +, −, *, /, ^, and parentheses.");
+    }
+    let pos = 0;
+    function peek() { return tokens[pos]; }
+    function constant(v) { return {c:0, d:v}; }
+    function add(a,b) { return {c:a.c+b.c,d:a.d+b.d}; }
+    function neg(a) { return {c:-a.c,d:-a.d}; }
+    function mul(a,b) {
+        if (a.c !== 0 && b.c !== 0) throw new Error("Only transformations of the form cx+d are allowed.");
+        return {c:a.c*b.d+a.d*b.c, d:a.d*b.d};
+    }
+    function div(a,b) {
+        if (b.c !== 0 || b.d === 0) throw new Error("Division by x (or zero) is not allowed.");
+        return {c:a.c/b.d,d:a.d/b.d};
+    }
+    function atom() {
+        const t=peek();
+        if (t === "(") {
+            pos++;
+            const v = expression();
+            if (peek() !== ")") throw new Error("Check the parentheses.");
+            pos++;
+            return v;
+        }
+        if (t && /^[xX]$/.test(t)) {pos++; return {c:1,d:0};}
+        if (t && /^(?:\d|\.)/.test(t)) {pos++; return constant(Number(t));}
+        throw new Error("Check the transformation expression.");
+    }
+    function unary() {
+        if (peek()==="+") {pos++; return unary();}
+        if (peek()==="-") {pos++; return neg(unary());}
+        return power();
+    }
+    function power() {
+        let v=atom();
+        if (peek()==="^") {
+            pos++;
+            const e=unary();
+            if (e.c !== 0 || !Number.isInteger(e.d) || e.d < 0 || e.d > 10)
+                throw new Error("Only nonnegative integer powers up to 10 are supported.");
+            if (v.c !== 0 && e.d > 1)
+                throw new Error("Powers such as x² are not linear transformations.");
+            v = e.d === 0 ? constant(1) : {c:v.c * Math.pow(v.d,e.d-1), d:Math.pow(v.d,e.d)};
+        }
+        return v;
+    }
+    function term() {
+        let v=unary();
+        while (true) {
+            const t=peek();
+            if (t==="*" || t==="/") {
+                pos++;
+                const w=unary();
+                v=t==="*" ? mul(v,w) : div(v,w);
+            } else if (t && (t==="(" || t==="x" || t==="X" || /^(?:\d|\.)/.test(t))) {
+                v=mul(v,unary()); // implicit multiplication: 4x, 2(x+1)
+            } else break;
+        }
+        return v;
+    }
+    function expression() {
+        let v=term();
+        while (peek()==="+" || peek()==="-") {
+            const op=tokens[pos++];
+            const w=term();
+            v=add(v,op==="+"?w:neg(w));
+        }
+        return v;
+    }
+    const result=expression();
+    if (pos!==tokens.length || !Number.isFinite(result.c) || !Number.isFinite(result.d))
+        throw new Error("Check the transformation expression.");
+    return result;
+}
+
+function formatNumber(x) {
+    return Number(x.toPrecision(9)).toString();
+}
+function transformationLabel(c,d) {
+    const magnitude=Math.abs(c);
+    let result;
+    if (c===0) result="";
+    else if (c===1) result="aₙ";
+    else if (c===-1) result="−aₙ";
+    else result=formatNumber(c)+"aₙ";
+    if (d!==0 || c===0) {
+        if (c===0) result=formatNumber(d);
+        else result += (d<0 ? " − " : " + ") + formatNumber(Math.abs(d));
+    }
+    return "bₙ = "+result;
+}
+function sequenceValue(n) {
+    const formula=sequenceBox.value.replace(/(^|[(+\-*/,])\s*-/g,"$1(-1)*").replace(/\^/g,"**");
+    try {
+        const value=Function("n","return ("+formula+");")(n);
+        return typeof value==="number" ? value : NaN;
+    } catch { return NaN; }
+}
+function drawGraph(canvas,ctx,transformed,c,d,yMin,yMax) {
+    const width=canvas.width,height=canvas.height;
+    const left=50,right=width-20,top=20,bottom=height-40;
+    ctx.clearRect(0,0,width,height);
+    const L=Number(limitBox.value);
+    const epsilon=Math.max(0,Number(epsilonBox.value));
+    const delta=Math.max(0,Number(deltaBox.value));
+    const limit=transformed ? c*L+d : L;
+    const xPosition=n=>left+(n-1)*(right-left)/49;
+    const yPosition=value=>bottom-(value-yMin)*(bottom-top)/(yMax-yMin);
+    ctx.strokeStyle="black";ctx.lineWidth=1;ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(left,top);ctx.lineTo(left,bottom);ctx.lineTo(right,bottom);ctx.stroke();
+    ctx.fillStyle="black";ctx.font="14px Arial";ctx.textAlign="center";
+    for(const n of [1,10,20,30,40,50]) {
+        const x=xPosition(n);
+        ctx.beginPath();ctx.moveTo(x,bottom);ctx.lineTo(x,bottom+6);ctx.stroke();
+        ctx.fillText(n,x,bottom+22);
+    }
+    ctx.fillText("n",right,bottom+38);
+    const roughStep=(yMax-yMin)/5;
+    const magnitude=Math.pow(10,Math.floor(Math.log10(roughStep)));
+    const normalized=roughStep/magnitude;
+    const niceStep=(normalized<=1?1:normalized<=2?2:normalized<=5?5:10)*magnitude;
+    ctx.textAlign="right";
+    for(let i=Math.ceil(yMin/niceStep);i*niceStep<=yMax;i++) {
+        const value=i*niceStep,y=yPosition(value);
+        ctx.beginPath();ctx.moveTo(left-6,y);ctx.lineTo(left,y);ctx.stroke();
+        ctx.fillText(Number(value.toFixed(8)).toString(),left-10,y+5);
+    }
+    ctx.textAlign="left";ctx.fillText(transformed?"bₙ":"aₙ",10,15);
+    ctx.save();ctx.beginPath();ctx.rect(left,top,right-left,bottom-top);ctx.clip();
+    function band(radius,fill,stroke,lineWidth) {
+        const upper=yPosition(limit+radius),lower=yPosition(limit-radius);
+        ctx.fillStyle=fill;ctx.fillRect(left,upper,right-left,lower-upper);
+        ctx.strokeStyle=stroke;ctx.lineWidth=lineWidth;ctx.setLineDash([5,5]);
+        for(const boundary of [limit-radius,limit+radius]) {
+            ctx.beginPath();ctx.moveTo(left,yPosition(boundary));ctx.lineTo(right,yPosition(boundary));ctx.stroke();
+        }
+        ctx.setLineDash([]);
+    }
+    if(transformed && showTransformedEpsilon.checked) band(epsilon,"rgba(0,100,255,0.12)","blue",1.5);
+    if (transformed ? showTransformedDelta.checked : showOriginalDelta.checked) {
+        band(transformed?Math.abs(c)*delta:delta,"rgba(0,150,0,0.15)","green",2);
+    }
+    ctx.strokeStyle="red";ctx.lineWidth=2;ctx.setLineDash([8,5]);
+    ctx.beginPath();ctx.moveTo(left,yPosition(limit));ctx.lineTo(right,yPosition(limit));ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="red";ctx.font="bold 14px Arial";ctx.textAlign="left";
+    ctx.fillText((transformed?"cL + d = ":"L = ")+formatNumber(limit),left+10,yPosition(limit)-8);
+    const showCount = revealMode === "all" ? TERM_COUNT :
+        (transformed && revealMode === "original" ? 0 : revealedCount);
+    for(let n=1;n<=showCount;n++) {
+        const a=sequenceValue(n);
+        if(!Number.isFinite(a)) continue;
+        const value=transformed?c*a+d:a;
+        if(!Number.isFinite(value)) continue;
+        const active = revealMode !== "all" && n === revealedCount &&
+            (!transformed || revealMode === "paired");
+        ctx.fillStyle = revealMode === "all" ? "#333333" : (active ? "#e02424" : "#1465d2");
+        ctx.beginPath();ctx.arc(xPosition(n),yPosition(value),active ? 7 : 4,0,2*Math.PI);ctx.fill();
+        if(active) { ctx.strokeStyle="#a00000";ctx.lineWidth=1.5;ctx.stroke(); }
+    }
+    ctx.restore();
+}
+function updateSummary(c,d) {
+    const L=Number(limitBox.value);
+    const epsilon=Number(epsilonBox.value);
+    const delta=Number(deltaBox.value);
+    transformedFormula.textContent=transformationLabel(c,d);
+    transformedLimit.textContent="The transformed sequence approaches cL + d = "+formatNumber(c*L+d)+".";
+    if(c!==0) {
+        requiredTolerance.textContent="To fit inside the ε-band, choose δ ≤ ε/|c| = "+formatNumber(epsilon/Math.abs(c))+".";
+    } else {
+        requiredTolerance.textContent="Since c = 0, the transformed sequence is constant. Any positive δ works.";
+    }
+    const radius=Math.abs(c)*delta;
+    if(!(epsilon>0) || !(delta>0)) {
+        bandStatus.className="status warning";
+        bandStatus.textContent="Choose positive values for ε and δ.";
+    } else if(radius<=epsilon+1e-10) {
+        bandStatus.className="status success";
+        bandStatus.textContent="The transformed δ-band fits inside the ε-band. |c|δ = "+formatNumber(radius)+" ≤ ε = "+formatNumber(epsilon)+".";
+    } else {
+        bandStatus.className="status warning";
+        bandStatus.textContent="The transformed δ-band is wider than the ε-band. |c|δ = "+formatNumber(radius)+" > ε = "+formatNumber(epsilon)+".";
+    }
+}
+function redrawGraphs() {
+    let coefficients;
+    try {
+        coefficients=parseTransformation(transformationBox.value);
+        transformationError.textContent="";
+    } catch(error) {
+        transformationError.textContent=error.message;
+        transformedFormula.textContent="Enter a linear transformation";
+        transformedLimit.textContent="";
+        bandStatus.className="status warning";
+        bandStatus.textContent="Fix the transformation to update the graphs.";
+        requiredTolerance.textContent="";
+        originalCtx.clearRect(0,0,originalCanvas.width,originalCanvas.height);
+        transformedCtx.clearRect(0,0,transformedCanvas.width,transformedCanvas.height);
+        return;
+    }
+    const {c,d}=coefficients;
+    const yMin = Number(yMinBox.value);
+    const yMax = Number(yMaxBox.value);
+    if (yMinBox.value.trim()==="" || yMaxBox.value.trim()==="" ||
+        !Number.isFinite(yMin) || !Number.isFinite(yMax) || yMin >= yMax) {
+        axisError.textContent = "Y-min must be less than Y-max.";
+        return;
+    }
+    axisError.textContent = "";
+    drawGraph(originalCanvas,originalCtx,false,c,d,yMin,yMax);
+    drawGraph(transformedCanvas,transformedCtx,true,c,d,yMin,yMax);
+    updateSummary(c,d);
+}
+sequenceBox.addEventListener("input",redrawGraphs);
+transformationBox.addEventListener("input",redrawGraphs);
+limitBox.addEventListener("input",redrawGraphs);
+epsilonSlider.addEventListener("input",function() {
+    epsilonBox.value=epsilonSlider.value;
+    redrawGraphs();
+});
+epsilonBox.addEventListener("input",function() {
+    const epsilon=Number(epsilonBox.value);
+    if(Number.isFinite(epsilon) && epsilon>0) {
+        if(epsilon>Number(epsilonSlider.max)) epsilonSlider.max=epsilon;
+        epsilonSlider.value=epsilon;
+    }
+    redrawGraphs();
+});
+showTransformedEpsilon.addEventListener("change",redrawGraphs);
+showOriginalDelta.addEventListener("change",redrawGraphs);
+showTransformedDelta.addEventListener("change",redrawGraphs);
+deltaSlider.addEventListener("input",function() {
+    deltaBox.value=deltaSlider.value;
+    redrawGraphs();
+});
+deltaBox.addEventListener("input",function() {
+    const delta=Number(deltaBox.value);
+    if(Number.isFinite(delta) && delta>0) {
+        if(delta>Number(deltaSlider.max)) deltaSlider.max=delta;
+        deltaSlider.value=delta;
+    }
+    redrawGraphs();
+});
+showToleranceBox.addEventListener("change",function() {
+    requiredTolerance.style.display=showToleranceBox.checked?"block":"none";
+});
+yMinBox.addEventListener("input",redrawGraphs);
+yMaxBox.addEventListener("input",redrawGraphs);
+redrawGraphs();
+</script>
+</body>
+</html>
