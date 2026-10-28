@@ -35,14 +35,15 @@ input[type=range]{width:100%;accent-color:#2762ad}
 .dash{display:inline-block;width:16px;border-top:2px dashed #2e69a8;margin-right:4px;vertical-align:3px}
 canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-radius:7px}
 #pairGrid{cursor:crosshair}
-.grip{height:16px;margin-top:3px;display:flex;align-items:center;justify-content:center;cursor:ns-resize;border-radius:6px;touch-action:none;user-select:none;-webkit-user-select:none}
 .settings{border-top:1px solid #dce3ec;margin-top:10px;padding-top:8px}
 .settings .field{margin-bottom:7px}
 .inline-field{display:flex;align-items:center;gap:8px}
 .inline-field label{font-weight:700;font-size:13px;white-space:nowrap}
 .inline-field select{padding:4px 6px;border:1px solid #bdc8d6;border-radius:7px;font-size:13px;background:#fff;color:#243044}
-.grip span{width:46px;height:5px;border-radius:3px;background:#c3cddb}
-.grip:hover span,.grip.dragging span{background:#2762ad}
+.yrange{display:flex;gap:8px}.yrange label{display:flex;align-items:center;gap:4px;font-weight:400;font-size:12px;margin:0;flex:1;white-space:nowrap}
+.yrange input{width:100%;min-width:0;padding:4px 6px;border:1px solid #bdc8d6;border-radius:7px;font-size:13px}
+.ybuttons{display:flex;gap:6px;margin-top:6px}.ybuttons button{flex:1;padding:5px 6px;border:1px solid #bdc8d6;border-radius:7px;background:#eef3fa;color:#243044;font-size:12px;cursor:pointer}
+#seqGraph{cursor:ns-resize;touch-action:none}
 .graph-footer{font-size:12px;color:#58687a;margin-top:8px;line-height:1.4;min-height:2.8em}
 .readout{font-size:15px;margin-top:8px;padding:7px 9px;border-radius:7px;background:#f3f5f9;min-height:2.3em}
 .readout.ok{background:#e7f5ec;color:#1d6b40}
@@ -82,8 +83,10 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
   <select id="center" autocomplete="off"><option value="aN" selected>The first tail term (index N)</option><option value="mid">Midpoint of the tail</option></select></div>
  <div class="status" id="status" aria-live="polite">Ready.</div>
  <div class="settings">
-  <div class="field"><label for="hNumber">Graph height</label>
-   <div class="pair"><input id="hSlider" type="range" min="250" max="1200" step="10" value="450"><input id="hNumber" type="number" min="250" max="1200" step="10" value="450"></div></div>
+  <div class="field"><label>Vertical range</label>
+   <div class="yrange"><label>y-min <input id="yMinBox" type="number" step="any"></label><label>y-max <input id="yMaxBox" type="number" step="any"></label></div>
+   <div class="ybuttons"><button type="button" id="zoomIn" title="Zoom in around the middle of the graph">Zoom in</button><button type="button" id="zoomOut" title="Zoom out">Zoom out</button><button type="button" id="autoRange" title="Fit the first 60 terms">Auto</button></div>
+   <div class="help">Or drag up and down on the graph to slide the range.</div></div>
   <div class="inline-field" title="The graphs show the first 60 terms. The status check uses every pair m, n ≥ N among the tested terms.">
    <label for="tested">Terms tested</label>
    <select id="tested"><option value="1000">1,000</option><option value="10000" selected>10,000</option><option value="100000">100,000</option></select></div>
@@ -94,7 +97,6 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
  <div class="graph-head"><h2 id="seqTitle">Sequence terms</h2>
   <div class="legend"><span><i class="dot" style="background:#8993a0"></i>n &lt; N</span><span><i class="dot" style="background:#2762ad"></i>n ≥ N</span><span><i class="sq" style="background:rgba(47,158,95,.35);border:1px dashed #2f9e5f"></i>ε-band</span><span><i class="dash" style="border-top:2px solid #2e3f57"></i>tail max/min</span></div></div>
  <canvas id="seqGraph"></canvas>
- <div class="grip" id="seqGrip" title="Drag to change the graph height (double-click to reset)" role="separator" aria-orientation="horizontal" aria-label="Resize graph height"><span></span></div>
  <div class="graph-footer">Shaded band: height ε; green when both solid lines (the largest and smallest tested terms with n ≥ N) fit strictly inside. Centered on the midpoint, it holds the tail exactly when every pair m, n ≥ N satisfies |aₘ − aₙ| &lt; ε. Centered on a<sub>N</sub>, fitting is enough, but not necessary.</div>
 </section>
 
@@ -175,15 +177,16 @@ function fmt(x){if(x===0)return '0';const a=Math.abs(x);return (a>=1e-4&&a<1e6)?
 function fmtInt(n){return n.toLocaleString('en-US');}
 const SUB='₀₁₂₃₄₅₆₇₈₉';
 function sub(n){return String(n).replace(/\d/g,d=>SUB[d]);}
+let tickStep=1;
 function axisTicks(min,max){
- const span=max-min;
- const choices=[0.01,0.02,0.05,0.1,0.2,0.25,0.5,1,2,5,10,20,25,50,100,200,500,1000];
- const step=choices.find(v=>span/v<=8)||Math.pow(10,Math.ceil(Math.log10(span/6)));
+ // Tick spacing of 1, 2, 2.5, or 5 times a power of ten, so zooming in still gives readable labels.
+ const raw=(max-min)/8,pw=Math.pow(10,Math.floor(Math.log10(raw)));
+ const step=[1,2,2.5,5,10].map(m=>m*pw).find(s=>s>=raw);tickStep=step;
  const ticks=[];
  for(let k=Math.ceil((min-1e-10)/step);k<=Math.floor((max+1e-10)/step)&&ticks.length<14;k++)ticks.push(k*step);
  return ticks;
 }
-function tickLabel(x){if(Math.abs(x)<1e-9)return '0';return String(Number(x.toFixed(4)));}
+function tickLabel(x){if(Math.abs(x)<tickStep*1e-6)return '0';const d=Math.max(0,Math.ceil(-Math.log10(tickStep))+1);return String(Number(x.toFixed(Math.min(d,12))));}
 function sizeCanvas(canvas,ctx){
  const r=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
  canvas.width=Math.max(1,Math.round(r.width*dpr));canvas.height=Math.max(1,Math.round(r.height*dpr));
@@ -319,7 +322,7 @@ function update(){
   const key=raw+'|'+mode+'|'+M;
   if(key!==dataKey){data=computeData(raw,mode,M);dataKey=key;}
   const rk=raw+'|'+mode;
-  if(rk!==rangeKey){fixedRange=calcRange(data.vals);rangeKey=rk;}
+  if(rk!==rangeKey){fixedRange=calcRange(data.vals);rangeKey=rk;showRange();}
   const eps=Number($('epsNumber').value);
   if(!Number.isFinite(eps)||eps<=0)throw Error('ε must be a positive number.');
   let N=Math.max(1,Math.floor(Number($('nNumber').value)||1));
@@ -417,19 +420,28 @@ gridCanvas.addEventListener('click',e=>{
  update();
 });
 window.addEventListener('resize',update);
-// Graph height: the slider/number box and the drag bar under the graph stay in sync.
-// Only the height changes; the vertical scale of the graph does not.
-function setGraphHeight(h){
- h=Math.max(250,Math.min(1200,Math.round(Number(h)||450)));
- seqCanvas.style.height=h+'px';$('hSlider').value=h;$('hNumber').value=h;update();
-}
-bind($('hSlider'),$('hNumber'),()=>setGraphHeight($('hNumber').value));
-(()=>{const grip=$('seqGrip');let startY=0,startH=0,dragging=false;
- grip.addEventListener('pointerdown',e=>{e.preventDefault();dragging=true;startY=e.clientY;startH=seqCanvas.getBoundingClientRect().height;grip.classList.add('dragging');try{grip.setPointerCapture(e.pointerId);}catch(err){}});
- grip.addEventListener('pointermove',e=>{if(dragging)setGraphHeight(startH+e.clientY-startY);});
- const end=()=>{dragging=false;grip.classList.remove('dragging');};
- grip.addEventListener('pointerup',end);grip.addEventListener('pointercancel',end);grip.addEventListener('lostpointercapture',end);
- grip.addEventListener('dblclick',()=>setGraphHeight(450));
+// Vertical range: y-min/y-max boxes, zoom buttons, Auto, and dragging on the graph.
+// The range resets automatically only when the sequence itself changes.
+function fmtRange(x){return String(Number(x.toPrecision(6)));}
+function showRange(){for(const k of ['yMinBox','yMaxBox'])$(k).style.borderColor='';$('yMinBox').value=fmtRange(fixedRange[0]);$('yMaxBox').value=fmtRange(fixedRange[1]);}
+function setRange(lo,hi){if(!(hi>lo)||!Number.isFinite(lo)||!Number.isFinite(hi))return;fixedRange=[lo,hi];showRange();update();}
+// Typed values take effect once y-min < y-max; until then the boxes are outlined in red.
+for(const id of ['yMinBox','yMaxBox'])$(id).addEventListener('change',()=>{
+ const lo=Number($('yMinBox').value),hi=Number($('yMaxBox').value);
+ const ok=$('yMinBox').value.trim()!==''&&$('yMaxBox').value.trim()!==''&&Number.isFinite(lo)&&Number.isFinite(hi)&&hi>lo;
+ for(const k of ['yMinBox','yMaxBox'])$(k).style.borderColor=ok?'':'#cf3c40';
+ if(ok)setRange(lo,hi);});
+function zoom(f){const [lo,hi]=fixedRange,c=(lo+hi)/2,h=(hi-lo)/2*f;setRange(c-h,c+h);}
+$('zoomIn').addEventListener('click',()=>zoom(0.5));
+$('zoomOut').addEventListener('click',()=>zoom(2));
+$('autoRange').addEventListener('click',()=>{if(data)setRange(...calcRange(data.vals));});
+(()=>{let startY=0,start=null;
+ seqCanvas.addEventListener('pointerdown',e=>{e.preventDefault();startY=e.clientY;start=fixedRange.slice();try{seqCanvas.setPointerCapture(e.pointerId);}catch(err){}});
+ seqCanvas.addEventListener('pointermove',e=>{if(!start)return;
+  const gh=seqCanvas.getBoundingClientRect().height-62,shift=(e.clientY-startY)*(start[1]-start[0])/gh;
+  fixedRange=[start[0]+shift,start[1]+shift];showRange();update();});
+ const end=()=>{start=null;};
+ seqCanvas.addEventListener('pointerup',end);seqCanvas.addEventListener('pointercancel',end);seqCanvas.addEventListener('lostpointercapture',end);
 })();
 // Start from the same defaults every time, even if the browser tries to restore
 // menu or checkbox choices from a previous visit.
