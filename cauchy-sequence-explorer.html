@@ -35,6 +35,9 @@ input[type=range]{width:100%;accent-color:#2762ad}
 .dash{display:inline-block;width:16px;border-top:2px dashed #2e69a8;margin-right:4px;vertical-align:3px}
 canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-radius:7px}
 #pairGrid{cursor:crosshair}
+.grip{height:14px;margin-top:3px;display:flex;align-items:center;justify-content:center;cursor:ns-resize;border-radius:6px;touch-action:none;user-select:none}
+.grip span{width:46px;height:5px;border-radius:3px;background:#c3cddb}
+.grip:hover span,.grip.dragging span{background:#2762ad}
 .graph-footer{font-size:12px;color:#58687a;margin-top:8px;line-height:1.4;min-height:2.8em}
 .readout{font-size:15px;margin-top:8px;padding:7px 9px;border-radius:7px;background:#f3f5f9;min-height:2.3em}
 .readout.ok{background:#e7f5ec;color:#1d6b40}
@@ -78,7 +81,7 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
  <label class="check"><input type="checkbox" id="smallest"> Find smallest N automatically</label>
  <label class="check"><input type="checkbox" id="showWindow"> Show tail range, ε-band, and pair grid</label>
  <div class="field" style="margin-top:6px"><label for="center">Center the ε-band on</label>
-  <select id="center"><option value="aN" selected>The first tail term (index N)</option><option value="mid">Midpoint of the tail</option></select></div>
+  <select id="center" autocomplete="off"><option value="aN" selected>The first tail term (index N)</option><option value="mid">Midpoint of the tail</option></select></div>
  <div class="status" id="status" aria-live="polite">Ready.</div>
 </section>
 
@@ -86,6 +89,7 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
  <div class="graph-head"><h2 id="seqTitle">Sequence terms</h2>
   <div class="legend"><span><i class="dot" style="background:#8993a0"></i>n &lt; N</span><span><i class="dot" style="background:#2762ad"></i>n ≥ N</span><span><i class="sq" style="background:rgba(47,158,95,.35);border:1px dashed #2f9e5f"></i>ε-band</span><span><i class="dash" style="border-top:2px solid #2e3f57"></i>tail max/min</span></div></div>
  <canvas id="seqGraph"></canvas>
+ <div class="grip" id="seqGrip" title="Drag to change the graph height (double-click to reset)" role="separator" aria-orientation="horizontal" aria-label="Resize graph height"><span></span></div>
  <div class="graph-footer">Shaded band: height ε; green when both solid lines (the largest and smallest tested terms with n ≥ N) fit strictly inside. Centered on the midpoint, it holds the tail exactly when every pair m, n ≥ N satisfies |aₘ − aₙ| &lt; ε. Centered on a<sub>N</sub>, fitting is enough, but not necessary.</div>
 </section>
 
@@ -408,6 +412,16 @@ gridCanvas.addEventListener('click',e=>{
  update();
 });
 window.addEventListener('resize',update);
+// Drag the bar under the sequence graph to change its height; double-click restores the default.
+(()=>{const grip=$('seqGrip');let startY=0,startH=0;
+ const move=e=>{const h=Math.max(250,Math.min(1200,startH+e.clientY-startY));seqCanvas.style.height=h+'px';update();};
+ const end=()=>{grip.classList.remove('dragging');window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);};
+ grip.addEventListener('pointerdown',e=>{e.preventDefault();startY=e.clientY;startH=seqCanvas.getBoundingClientRect().height;grip.classList.add('dragging');window.addEventListener('pointermove',move);window.addEventListener('pointerup',end);});
+ grip.addEventListener('dblclick',()=>{seqCanvas.style.height='';update();});
+})();
+// Start from the same defaults every time, even if the browser tries to restore
+// menu or checkbox choices from a previous visit.
+$('center').value='aN';$('showWindow').checked=false;$('smallest').checked=false;syncWindow();
 presetSel.value='0';syncLabels();update();
 </script>
 </body>
