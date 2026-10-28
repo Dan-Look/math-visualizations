@@ -78,7 +78,7 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
  <label class="check"><input type="checkbox" id="smallest"> Find smallest N automatically</label>
  <label class="check"><input type="checkbox" id="showWindow"> Show tail range, ε-band, and pair grid</label>
  <div class="field" style="margin-top:6px"><label for="center">Center the ε-band on</label>
-  <select id="center"><option value="mid" selected>Midpoint of the tail</option><option value="aN">The first tail term (index N)</option></select></div>
+  <select id="center"><option value="aN" selected>The first tail term (index N)</option><option value="mid">Midpoint of the tail</option></select></div>
  <div class="status" id="status" aria-live="polite">Ready.</div>
 </section>
 
@@ -219,10 +219,12 @@ function paintSeq(eps,N,sym){
  }
  if(tailVisible){ctx.strokeStyle='#238f55';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x(N),p.top);ctx.lineTo(x(N),p.top+gh);ctx.stroke();}
  for(let n=1;n<=VISIBLE;n++){ctx.fillStyle=n<N?'#8993a0':'#2762ad';ctx.beginPath();ctx.arc(x(n),y(v[n]),3.8,0,Math.PI*2);ctx.fill();}
- // Ring the terms where the tail reaches its largest and smallest values (if they are on screen).
- if($('showWindow').checked&&N<=data.M){
+ // Ring the terms where the tail reaches its largest and smallest values (if on screen).
+ // a_N itself is never ringed: the vertical N-line already marks it.
+ // While a pair is selected from the grid, only that pair is circled.
+ if($('showWindow').checked&&N<=data.M&&!selected){
   ctx.strokeStyle=bandPass?'#2f9e5f':'#d4474b';ctx.lineWidth=2;
-  for(const i of [data.iMax[N],data.iMin[N]])if(i<=VISIBLE){ctx.beginPath();ctx.arc(x(i),y(v[i]),7,0,Math.PI*2);ctx.stroke();}
+  for(const i of [data.iMax[N],data.iMin[N]])if(i!==N&&i<=VISIBLE){ctx.beginPath();ctx.arc(x(i),y(v[i]),7,0,Math.PI*2);ctx.stroke();}
  }
  // Selected pair from the grid.
  if(selected){
