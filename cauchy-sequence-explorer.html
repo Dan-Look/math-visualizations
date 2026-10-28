@@ -313,7 +313,12 @@ function update(){
   if(!Number.isFinite(eps)||eps<=0)throw Error('ε must be a positive number.');
   let N=Math.max(1,Math.floor(Number($('nNumber').value)||1));
   const auto=$('smallest').checked;
-  if(auto){N=1;while(N<M&&data.sufMax[N]-data.sufMin[N]>=eps)N++;setN(N);}
+  // In a_N mode (with the band shown), search for the band centered on a_N; otherwise use the Cauchy condition.
+  const onAN=$('showWindow').checked&&$('center').value==='aN';
+  const cauchyAt=k=>data.sufMax[k]-data.sufMin[k]<eps;
+  const worksAt=k=>onAN?bandFitsAtAN(k,eps):cauchyAt(k);
+  let cauchyN=1;while(cauchyN<M&&!cauchyAt(cauchyN))cauchyN++;
+  if(auto){N=1;while(N<M&&!worksAt(N))N++;setN(N);}
   for(const id of ['nNumber','nSlider','nPlus'])$(id).disabled=auto;
   $('nMinus').disabled=auto||N<=1;
 
@@ -324,7 +329,9 @@ function update(){
   }else{
    const spread=data.sufMax[N]-data.sufMin[N];
    if(auto){
-    msg=`Smallest N that works for the first ${fmtInt(M)} terms: <b>N = ${fmtInt(N)}</b>.`;
+    msg=onAN
+     ?`Smallest N with every later term inside the band centered on ${sym}<sub>N</sub> (first ${fmtInt(M)} terms): <b>N = ${fmtInt(N)}</b>.`+(cauchyN<N?` The Cauchy condition itself already holds from N = ${fmtInt(cauchyN)}.`:'')
+     :`Smallest N that works for the first ${fmtInt(M)} terms: <b>N = ${fmtInt(N)}</b>.`;
    }else if(spread<eps){
     msg=`✓ Every pair with ${fmtInt(N)} ≤ m, n ≤ ${fmtInt(M)} satisfies |${A} − ${B}| &lt; ε. Largest gap: ${fmt(spread)}.`;
    }else{
@@ -332,7 +339,7 @@ function update(){
     msg=`✗ m = ${fmtInt(m)}, n = ${fmtInt(n)} gives |${A} − ${B}| = ${fmt(spread)} ≥ ε${n>VISIBLE?' (beyond the graphs)':''}.`;
    }
   }
-  if(N<=M&&$('showWindow').checked&&$('center').value==='aN'){
+  if(N<=M&&onAN&&!auto){
    const aN=`${sym}<sub>N</sub>`,fits=bandFitsAtAN(N,eps),pass=data.sufMax[N]-data.sufMin[N]<eps;
    msg+=`<br>${fits?`Band centered on ${aN}: every term from N on is within ε/2 of ${aN}.`:pass?`Band centered on ${aN} does not hold the tail, but a band of height ε placed at the midpoint would.`:`Band centered on ${aN} does not hold the tail.`}`;
   }
