@@ -39,7 +39,9 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
 .readout{font-size:15px;margin-top:8px;padding:7px 9px;border-radius:7px;background:#f3f5f9;min-height:2.3em}
 .readout.ok{background:#e7f5ec;color:#1d6b40}
 .readout.bad{background:#fbeaea;color:#9b2c2c}
-@media(max-width:1180px){.layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.controls{grid-column:1/-1}}
+.layout.no-grid{grid-template-columns:310px minmax(0,1fr)}
+#pairCard[hidden]{display:none}
+@media(max-width:1180px){.layout,.layout.no-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.controls{grid-column:1/-1}.layout.no-grid .card{grid-column:1/-1}}
 @media(max-width:760px){body{padding:12px}.layout{grid-template-columns:1fr}canvas{height:380px}}
 </style>
 </head>
@@ -47,7 +49,7 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
 <a href="index.html" style="display:inline-block;align-self:flex-start;margin:0 0 6px;font:600 13px Arial,Helvetica,sans-serif;color:#2762ad;text-decoration:none">← All visualizations</a>
 <h1>Cauchy Sequence Explorer</h1>
 <p class="lead">A sequence is Cauchy if for every ε &gt; 0 there is an N such that |aₘ − aₙ| &lt; ε whenever m, n ≥ N. Notice that no limit appears in the definition.</p>
-<div class="layout">
+<div class="layout no-grid" id="layout">
 
 <section class="card controls">
  <div class="field"><label for="preset">Example</label>
@@ -74,7 +76,7 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
   </select>
   <div class="help">The graphs show the first 60 terms. The check below uses every pair m, n ≥ N among the tested terms.</div></div>
  <label class="check"><input type="checkbox" id="smallest"> Find smallest N automatically</label>
- <label class="check"><input type="checkbox" id="showWindow"> Show tail range and ε-band</label>
+ <label class="check"><input type="checkbox" id="showWindow"> Show tail range, ε-band, and pair grid</label>
  <div class="field" style="margin-top:6px"><label for="center">Center the ε-band on</label>
   <select id="center"><option value="mid" selected>Midpoint of the tail</option><option value="aN">The first tail term (index N)</option></select></div>
  <div class="status" id="status" aria-live="polite">Ready.</div>
@@ -87,7 +89,7 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
  <div class="graph-footer">Shaded band: height ε; green when both solid lines (the largest and smallest tested terms with n ≥ N) fit strictly inside. Centered on the midpoint, it holds the tail exactly when every pair m, n ≥ N satisfies |aₘ − aₙ| &lt; ε. Centered on a<sub>N</sub>, fitting is enough, but not necessary.</div>
 </section>
 
-<section class="card">
+<section class="card" id="pairCard" hidden>
  <div class="graph-head"><h2>All pairs (m, n)</h2>
   <div class="legend"><span><i class="sq" style="background:#2f9e5f"></i>|aₘ − aₙ| &lt; ε</span><span><i class="sq" style="background:#d4474b"></i>|aₘ − aₙ| ≥ ε</span></div></div>
  <canvas id="pairGrid"></canvas>
@@ -345,7 +347,7 @@ function update(){
   }else{ro.className='readout';ro.textContent='Click a square to compare two terms.';}
 
   paintSeq(eps,N,sym);
-  paintGrid(eps,N);
+  if(!$('pairCard').hidden)paintGrid(eps,N);
  }catch(e){$('status').className='status error';$('status').textContent=e.message;}
 }
 
@@ -383,9 +385,11 @@ $('mode').addEventListener('change',()=>{
 $('expr').addEventListener('input',()=>{presetSel.value='';update();});
 $('tested').addEventListener('change',update);
 $('smallest').addEventListener('change',update);
-$('showWindow').addEventListener('change',()=>{$('center').disabled=!$('showWindow').checked;update();});
+// The pair grid appears only with the tail range and ε-band; the sequence graph widens when it is hidden.
+function syncWindow(){const on=$('showWindow').checked;$('center').disabled=!on;$('pairCard').hidden=!on;for(const id of ['kSlider','kNumber','kMinus','kPlus'])$(id).disabled=!on;$('layout').classList.toggle('no-grid',!on);if(!on)selected=null;}
+$('showWindow').addEventListener('change',()=>{syncWindow();update();});
 $('center').addEventListener('change',update);
-$('center').disabled=!$('showWindow').checked;
+syncWindow();
 gridCanvas.addEventListener('click',e=>{
  if(!gridGeom)return;
  const r=gridCanvas.getBoundingClientRect(),gx=e.clientX-r.left,gy=e.clientY-r.top,{ox,oy,cell,K}=gridGeom;
