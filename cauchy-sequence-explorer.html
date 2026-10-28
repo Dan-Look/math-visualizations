@@ -59,7 +59,7 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
   </select></div>
  <div class="field"><label for="expr" id="exprLabel">Sequence aₙ (in terms of n)</label>
   <input id="expr" type="text" value="(-1)^n/n" spellcheck="false" autocomplete="off">
-  <div class="help" id="exprHelp">Examples: 1/n, (-1)^n/n, sin(n)/n, sqrt(n). Use ^ for powers.</div></div>
+  <div class="help" id="exprHelp">Type any formula in n, e.g. 1/n, (-1)^n/n, sin(n)/n, sqrt(n), ln(n). Use ^ for powers.</div></div>
  <div class="field"><label for="epsNumber">Tolerance ε</label>
   <div class="pair"><input id="epsSlider" type="range" min="0.01" max="2" step="0.01" value="0.2"><input id="epsNumber" type="number" min="0.000001" step="any" value="0.2"></div></div>
  <div class="field"><label for="nNumber">Starting index N</label>
@@ -74,15 +74,17 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
   </select>
   <div class="help">The graphs show the first 60 terms. The check below uses every pair m, n ≥ N among the tested terms.</div></div>
  <label class="check"><input type="checkbox" id="smallest"> Find smallest N automatically</label>
- <label class="check"><input type="checkbox" id="showWindow" checked> Show tail range and ε-window</label>
+ <label class="check"><input type="checkbox" id="showWindow"> Show tail range and ε-band</label>
+ <div class="field" style="margin-top:6px"><label for="center">Center the ε-band on</label>
+  <select id="center"><option value="mid" selected>Midpoint of the tail</option><option value="aN">The first tail term (index N)</option></select></div>
  <div class="status" id="status" aria-live="polite">Ready.</div>
 </section>
 
 <section class="card">
  <div class="graph-head"><h2 id="seqTitle">Sequence terms</h2>
-  <div class="legend"><span><i class="dot" style="background:#8993a0"></i>n &lt; N</span><span><i class="dot" style="background:#2762ad"></i>n ≥ N</span><span><i class="dash"></i>height ε</span></div></div>
+  <div class="legend"><span><i class="dot" style="background:#8993a0"></i>n &lt; N</span><span><i class="dot" style="background:#2762ad"></i>n ≥ N</span><span><i class="sq" style="background:rgba(47,158,95,.35);border:1px dashed #2f9e5f"></i>ε-band</span><span><i class="dash" style="border-top:2px solid #2e3f57"></i>tail max/min</span></div></div>
  <canvas id="seqGraph"></canvas>
- <div class="graph-footer">Shaded strip: from the smallest to the largest tested term with n ≥ N. Dashed lines: a window of height ε starting at the edge of the strip. The tail fits inside the window exactly when every pair m, n ≥ N satisfies |aₘ − aₙ| &lt; ε.</div>
+ <div class="graph-footer">Shaded band: height ε; green when both solid lines (the largest and smallest tested terms with n ≥ N) fit strictly inside. Centered on the midpoint, it holds the tail exactly when every pair m, n ≥ N satisfies |aₘ − aₙ| &lt; ε. Centered on a<sub>N</sub>, fitting is enough, but not necessary.</div>
 </section>
 
 <section class="card">
@@ -104,10 +106,7 @@ const PRESETS=[
  {label:'aₙ = (−1)ⁿ/n (Cauchy)',mode:'formula',expr:'(-1)^n/n'},
  {label:'aₙ = sin(n)/n (Cauchy)',mode:'formula',expr:'sin(n)/n'},
  {label:'aₙ = (2n+1)/(n+3) (Cauchy)',mode:'formula',expr:'(2n+1)/(n+3)'},
- {label:'sₙ = sum of 1/k² (Cauchy)',mode:'sum',expr:'1/k^2'},
- {label:'sₙ = sum of (−1)ᵏ⁺¹/k (Cauchy)',mode:'sum',expr:'(-1)^(k+1)/k'},
  {label:'aₙ = (−1)ⁿ (not Cauchy)',mode:'formula',expr:'(-1)^n'},
- {label:'sₙ = sum of 1/k (not Cauchy)',mode:'sum',expr:'1/k'},
  {label:'aₙ = √n (not Cauchy)',mode:'formula',expr:'sqrt(n)'}
 ];
 
@@ -182,6 +181,8 @@ function sizeCanvas(canvas,ctx){
 }
 
 // ---------- Left graph: the sequence ----------
+// Band of height ε centered on the first tail term: does every term from N on fit strictly inside?
+function bandFitsAtAN(N,eps){const c=data.vals[N];return data.sufMax[N]<c+eps/2&&data.sufMin[N]>c-eps/2;}
 function paintSeq(eps,N,sym){
  const ctx=seqCtx,{w,h}=sizeCanvas(seqCanvas,ctx);
  const p={left:56,right:16,top:22,bottom:40},gw=w-p.left-p.right,gh=h-p.top-p.bottom;
@@ -191,24 +192,34 @@ function paintSeq(eps,N,sym){
  ctx.save();ctx.beginPath();ctx.rect(p.left,p.top,gw,gh);ctx.clip();
  for(const t of axisTicks(ymin,ymax)){ctx.strokeStyle='#e7ecf2';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.left,y(t));ctx.lineTo(p.left+gw,y(t));ctx.stroke();}
  const tailVisible=N<=VISIBLE;
- let hi=0,lo=0,pass=false;
- if(N<=data.M){hi=data.sufMax[N];lo=data.sufMin[N];pass=hi-lo<eps;}
+ let hi=0,lo=0,pass=false,bandPass=false;
+ if(N<=data.M){hi=data.sufMax[N];lo=data.sufMin[N];pass=hi-lo<eps;bandPass=$('center').value==='aN'?bandFitsAtAN(N,eps):pass;}
  if($('showWindow').checked&&tailVisible){
-  const x0=Math.max(p.left,x(N)-6),col=pass?'47,158,95':'212,71,75';
-  ctx.fillStyle=`rgba(${col},.15)`;ctx.fillRect(x0,y(hi),p.left+gw-x0,y(lo)-y(hi));
-  ctx.strokeStyle=`rgb(${col})`;ctx.lineWidth=1.3;
-  for(const t of [hi,lo]){ctx.beginPath();ctx.moveTo(x0,y(t));ctx.lineTo(p.left+gw,y(t));ctx.stroke();}
-  // ε-window starts at the smallest tail value, so it stays on screen even when the tail escapes upward.
-  const base=lo<fixedRange[0]&&hi<=fixedRange[1]?hi-eps:lo;
-  ctx.strokeStyle='#2e69a8';ctx.lineWidth=2;ctx.setLineDash([7,5]);
-  for(const t of [base,base+eps]){ctx.beginPath();ctx.moveTo(x0,y(t));ctx.lineTo(p.left+gw,y(t));ctx.stroke();}
+  const x0=Math.max(p.left,x(N)-6),col=bandPass?'47,158,95':'212,71,75',x1=p.left+gw;
+  const hline=v=>{ctx.beginPath();ctx.moveTo(x0,y(v));ctx.lineTo(x1,y(v));ctx.stroke();};
+  // ε-band: height ε, centered on the middle of the tail (the best possible placement).
+  // If the tail runs off the top (or bottom) of the graph, anchor the band at the
+  // visible end of the tail instead, so it is clear the band cannot hold the rest.
+  const onAN=$('center').value==='aN';
+  let c=(hi+lo)/2;
+  if(onAN)c=v[N];
+  else if(hi>ymax&&lo>=ymin)c=lo+eps/2;
+  else if(lo<ymin&&hi<=ymax)c=hi-eps/2;
+  else if(c>ymax||c<ymin)c=(Math.min(hi,ymax)+Math.max(lo,ymin))/2;
+  ctx.fillStyle=`rgba(${col},.2)`;ctx.fillRect(x0,y(c+eps/2),x1-x0,y(c-eps/2)-y(c+eps/2));
+  ctx.strokeStyle=`rgb(${col})`;ctx.lineWidth=1.6;ctx.setLineDash([7,5]);
+  hline(c-eps/2);hline(c+eps/2);
   ctx.setLineDash([]);
+  if(onAN){ctx.strokeStyle=`rgba(${col},.75)`;ctx.lineWidth=1;ctx.setLineDash([2,4]);hline(c);ctx.setLineDash([]);}
+  // Tail range: solid lines at the largest and smallest tested terms with n ≥ N.
+  ctx.strokeStyle='#2e3f57';ctx.lineWidth=1.6;
+  hline(hi);hline(lo);
  }
  if(tailVisible){ctx.strokeStyle='#238f55';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x(N),p.top);ctx.lineTo(x(N),p.top+gh);ctx.stroke();}
  for(let n=1;n<=VISIBLE;n++){ctx.fillStyle=n<N?'#8993a0':'#2762ad';ctx.beginPath();ctx.arc(x(n),y(v[n]),3.8,0,Math.PI*2);ctx.fill();}
  // Ring the terms where the tail reaches its largest and smallest values (if they are on screen).
  if($('showWindow').checked&&N<=data.M){
-  ctx.strokeStyle=pass?'#2f9e5f':'#d4474b';ctx.lineWidth=2;
+  ctx.strokeStyle=bandPass?'#2f9e5f':'#d4474b';ctx.lineWidth=2;
   for(const i of [data.iMax[N],data.iMin[N]])if(i<=VISIBLE){ctx.beginPath();ctx.arc(x(i),y(v[i]),7,0,Math.PI*2);ctx.stroke();}
  }
  // Selected pair from the grid.
@@ -284,7 +295,7 @@ function gridSize(){return Math.max(5,Math.min(VISIBLE,Math.round(Number($('kNum
 function syncLabels(){
  const sum=$('mode').value==='sum';
  $('exprLabel').textContent=sum?'Term aₖ (in terms of k)':'Sequence aₙ (in terms of n)';
- $('exprHelp').textContent=sum?'The graphs show the partial sums sₙ = a₁ + ⋯ + aₙ. Examples: 1/k^2, 1/k, (-1)^(k+1)/k.':'Examples: 1/n, (-1)^n/n, sin(n)/n, sqrt(n). Use ^ for powers.';
+ $('exprHelp').textContent=sum?'The graphs show the partial sums sₙ = a₁ + ⋯ + aₙ. Examples: 1/k^2, 1/k, (-1)^(k+1)/k.':'Type any formula in n, e.g. 1/n, (-1)^n/n, sin(n)/n, sqrt(n), ln(n). Use ^ for powers.';
  $('seqTitle').textContent=sum?'Partial sums sₙ':'Sequence terms aₙ';
 }
 function setN(N){$('nNumber').value=N;$('nSlider').value=Math.min(Number($('nSlider').max),N);}
@@ -319,6 +330,10 @@ function update(){
     msg=`✗ m = ${fmtInt(m)}, n = ${fmtInt(n)} gives |${A} − ${B}| = ${fmt(spread)} ≥ ε${n>VISIBLE?' (beyond the graphs)':''}.`;
    }
   }
+  if(N<=M&&$('showWindow').checked&&$('center').value==='aN'){
+   const aN=`${sym}<sub>N</sub>`,fits=bandFitsAtAN(N,eps),pass=data.sufMax[N]-data.sufMin[N]<eps;
+   msg+=`<br>${fits?`Band centered on ${aN}: every term from N on is within ε/2 of ${aN}.`:pass?`Band centered on ${aN} does not hold the tail, but a band of height ε placed at the midpoint would.`:`Band centered on ${aN} does not hold the tail.`}`;
+  }
   msg+=`<br><small>${auto?'Testing more terms can require a larger N. ':''}Only finitely many pairs are tested, so this cannot prove that a sequence is Cauchy.</small>`;
   $('status').className='status';$('status').innerHTML=msg;
 
@@ -351,7 +366,7 @@ for(const [id,step] of [['nMinus',-1],['nPlus',1]])$(id).addEventListener('click
  setN(Math.max(1,Math.floor(Number($('nNumber').value)||1)+step));update();});
 
 const presetSel=$('preset');
-presetSel.add(new Option('Choose an example…',''));
+presetSel.add(new Option('Custom: type your own below',''));
 PRESETS.forEach((p,i)=>presetSel.add(new Option(p.label,String(i))));
 presetSel.addEventListener('change',()=>{
  const p=PRESETS[Number(presetSel.value)];if(!p)return;
@@ -368,7 +383,9 @@ $('mode').addEventListener('change',()=>{
 $('expr').addEventListener('input',()=>{presetSel.value='';update();});
 $('tested').addEventListener('change',update);
 $('smallest').addEventListener('change',update);
-$('showWindow').addEventListener('change',update);
+$('showWindow').addEventListener('change',()=>{$('center').disabled=!$('showWindow').checked;update();});
+$('center').addEventListener('change',update);
+$('center').disabled=!$('showWindow').checked;
 gridCanvas.addEventListener('click',e=>{
  if(!gridGeom)return;
  const r=gridCanvas.getBoundingClientRect(),gx=e.clientX-r.left,gy=e.clientY-r.top,{ox,oy,cell,K}=gridGeom;
