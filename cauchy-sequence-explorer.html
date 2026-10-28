@@ -35,7 +35,12 @@ input[type=range]{width:100%;accent-color:#2762ad}
 .dash{display:inline-block;width:16px;border-top:2px dashed #2e69a8;margin-right:4px;vertical-align:3px}
 canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-radius:7px}
 #pairGrid{cursor:crosshair}
-.grip{height:14px;margin-top:3px;display:flex;align-items:center;justify-content:center;cursor:ns-resize;border-radius:6px;touch-action:none;user-select:none}
+.grip{height:16px;margin-top:3px;display:flex;align-items:center;justify-content:center;cursor:ns-resize;border-radius:6px;touch-action:none;user-select:none;-webkit-user-select:none}
+.settings{border-top:1px solid #dce3ec;margin-top:10px;padding-top:8px}
+.settings .field{margin-bottom:7px}
+.inline-field{display:flex;align-items:center;gap:8px}
+.inline-field label{font-weight:700;font-size:13px;white-space:nowrap}
+.inline-field select{padding:4px 6px;border:1px solid #bdc8d6;border-radius:7px;font-size:13px;background:#fff;color:#243044}
 .grip span{width:46px;height:5px;border-radius:3px;background:#c3cddb}
 .grip:hover span,.grip.dragging span{background:#2762ad}
 .graph-footer{font-size:12px;color:#58687a;margin-top:8px;line-height:1.4;min-height:2.8em}
@@ -71,18 +76,18 @@ canvas{display:block;width:100%;height:450px;border:1px solid #e0e5ed;border-rad
   <div class="pair"><div class="n-stepper"><button id="nMinus" type="button" aria-label="Decrease N by one">−</button><input id="nSlider" type="range" min="1" max="60" step="1" value="5"><button id="nPlus" type="button" aria-label="Increase N by one">+</button></div><input id="nNumber" type="number" min="1" step="1" value="5"></div></div>
  <div class="field"><label for="kNumber">Pair grid shows m, n = 1 to</label>
   <div class="pair"><div class="n-stepper"><button id="kMinus" type="button" aria-label="Shrink grid by one">−</button><input id="kSlider" type="range" min="5" max="60" step="1" value="15"><button id="kPlus" type="button" aria-label="Enlarge grid by one">+</button></div><input id="kNumber" type="number" min="5" max="60" step="1" value="15"></div></div>
- <div class="field"><label for="tested">Terms tested</label>
-  <select id="tested">
-   <option value="1000">First 1,000 terms</option>
-   <option value="10000" selected>First 10,000 terms</option>
-   <option value="100000">First 100,000 terms</option>
-  </select>
-  <div class="help">The graphs show the first 60 terms. The check below uses every pair m, n ≥ N among the tested terms.</div></div>
  <label class="check"><input type="checkbox" id="smallest"> Find smallest N automatically</label>
  <label class="check"><input type="checkbox" id="showWindow"> Show tail range, ε-band, and pair grid</label>
  <div class="field" style="margin-top:6px"><label for="center">Center the ε-band on</label>
   <select id="center" autocomplete="off"><option value="aN" selected>The first tail term (index N)</option><option value="mid">Midpoint of the tail</option></select></div>
  <div class="status" id="status" aria-live="polite">Ready.</div>
+ <div class="settings">
+  <div class="field"><label for="hNumber">Graph height</label>
+   <div class="pair"><input id="hSlider" type="range" min="250" max="1200" step="10" value="450"><input id="hNumber" type="number" min="250" max="1200" step="10" value="450"></div></div>
+  <div class="inline-field" title="The graphs show the first 60 terms. The status check uses every pair m, n ≥ N among the tested terms.">
+   <label for="tested">Terms tested</label>
+   <select id="tested"><option value="1000">1,000</option><option value="10000" selected>10,000</option><option value="100000">100,000</option></select></div>
+ </div>
 </section>
 
 <section class="card">
@@ -412,12 +417,19 @@ gridCanvas.addEventListener('click',e=>{
  update();
 });
 window.addEventListener('resize',update);
-// Drag the bar under the sequence graph to change its height; double-click restores the default.
-(()=>{const grip=$('seqGrip');let startY=0,startH=0;
- const move=e=>{const h=Math.max(250,Math.min(1200,startH+e.clientY-startY));seqCanvas.style.height=h+'px';update();};
- const end=()=>{grip.classList.remove('dragging');window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);};
- grip.addEventListener('pointerdown',e=>{e.preventDefault();startY=e.clientY;startH=seqCanvas.getBoundingClientRect().height;grip.classList.add('dragging');window.addEventListener('pointermove',move);window.addEventListener('pointerup',end);});
- grip.addEventListener('dblclick',()=>{seqCanvas.style.height='';update();});
+// Graph height: the slider/number box and the drag bar under the graph stay in sync.
+// Only the height changes; the vertical scale of the graph does not.
+function setGraphHeight(h){
+ h=Math.max(250,Math.min(1200,Math.round(Number(h)||450)));
+ seqCanvas.style.height=h+'px';$('hSlider').value=h;$('hNumber').value=h;update();
+}
+bind($('hSlider'),$('hNumber'),()=>setGraphHeight($('hNumber').value));
+(()=>{const grip=$('seqGrip');let startY=0,startH=0,dragging=false;
+ grip.addEventListener('pointerdown',e=>{e.preventDefault();dragging=true;startY=e.clientY;startH=seqCanvas.getBoundingClientRect().height;grip.classList.add('dragging');try{grip.setPointerCapture(e.pointerId);}catch(err){}});
+ grip.addEventListener('pointermove',e=>{if(dragging)setGraphHeight(startH+e.clientY-startY);});
+ const end=()=>{dragging=false;grip.classList.remove('dragging');};
+ grip.addEventListener('pointerup',end);grip.addEventListener('pointercancel',end);grip.addEventListener('lostpointercapture',end);
+ grip.addEventListener('dblclick',()=>setGraphHeight(450));
 })();
 // Start from the same defaults every time, even if the browser tries to restore
 // menu or checkbox choices from a previous visit.
