@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Congruence Classes</title>
+<style>
+  :root{
+    --bg:#f6f6f4; --panel:#ffffff; --ink:#18181b; --muted:#71717a; --border:#e4e4e7;
+    --good:#15803d; --good-soft:#dcfce7; --bad:#b91c1c; --bad-soft:#fde2e2;
+    --shade:#334155; --focus:#2563eb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:17px}
+  header{padding:18px 32px 4px;display:flex;align-items:center;gap:32px;flex-wrap:wrap}
+  header h1{margin:0;font-size:26px;font-weight:600;letter-spacing:-.01em}
+  .tabs{display:flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:#fff}
+  .tabs button{border:0;border-radius:0;padding:9px 18px;font-size:16px}
+  .tabs button.on{background:var(--ink);color:#fff}
+  .layout{display:grid;grid-template-columns:270px minmax(0,1fr);gap:28px;padding:14px 32px 24px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px;align-self:start}
+  .group{margin-bottom:24px}
+  .group:last-child{margin-bottom:0}
+  .label{display:block;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+  .pair{display:flex;align-items:center;gap:12px}
+  .pair input[type=range]{flex:1;accent-color:var(--ink)}
+  .pair input[type=number]{width:70px;font-size:17px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;text-align:right;font-variant-numeric:tabular-nums}
+  .toggle{display:flex;align-items:center;gap:10px;margin:10px 0;cursor:pointer}
+  .toggle input{width:17px;height:17px;accent-color:var(--ink);flex:none}
+  button{font:inherit;font-size:16px;padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--ink);cursor:pointer}
+  button:hover{background:#f4f4f5}
+  .tabs button:hover{background:#f4f4f5}
+  .tabs button.on:hover{background:var(--ink)}
+  button.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+  button.primary:hover{background:#333338}
+  .buttons{display:flex;gap:8px;flex-wrap:wrap}
+  button:disabled{opacity:.4;cursor:default;background:#fff}
+
+  .stage{min-width:0}
+  .prompt{font-size:clamp(24px, 1.7vw, 36px);margin:4px 0 14px;font-weight:500;min-height:1.3em}
+  .prompt b{font-weight:700}
+  .readout{margin-top:16px;font-size:clamp(19px, 1.3vw, 28px);min-height:1.5em;font-variant-numeric:tabular-nums}
+  .readout .g{color:var(--good);font-weight:600}
+  .readout .r{color:var(--bad);font-weight:600}
+
+  /* Picture + side text. The grid is as large as possible while fitting the window:
+     --ar = columns / rows, so width = (available height) * --ar, capped by available width. */
+  .board{display:grid;grid-template-columns:auto minmax(220px,1fr);gap:28px;align-items:start}
+  .side .readout{margin-top:0}
+  /* wide grids (aligned columns): text goes underneath instead of beside */
+  .board.below{grid-template-columns:1fr}
+  .board.below .side .readout{margin-top:6px}
+  .board.below .grid{width:max(300px, min(calc(100vw - 400px), calc((100vh - 220px) * var(--ar, 1))))}
+  .side .classset{margin-top:0;margin-bottom:16px}
+  .grid{display:grid;gap:6px;
+        width:max(300px, min(calc(100vw - 660px), calc((100vh - 170px) * var(--ar, 1))))}
+
+  /* Grid tab */
+  .cell{aspect-ratio:1;container-type:inline-size;display:flex;align-items:center;justify-content:center;
+        background:#fff;border:1px solid var(--border);border-radius:8px;cursor:pointer;user-select:none;
+        font-variant-numeric:tabular-nums;transition:background .12s,border-color .12s,color .12s}
+  .cell span{font-size:38cqi;font-weight:500}
+  .cell:hover{border-color:#a1a1aa}
+  .cell.base{background:var(--ink);border-color:var(--ink);color:#fff}
+  .cell.good{background:var(--good);border-color:var(--good);color:#fff}
+  .cell.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+  .cell.hint{background:var(--good-soft);border:2px dashed var(--good);color:var(--good)}
+
+  /* Class walk tab */
+  .cell.cur{box-shadow:0 0 0 3px #fff, 0 0 0 6px var(--focus)}
+  .classset{margin-top:18px;font-size:clamp(20px, 1.4vw, 30px);line-height:1.5;min-height:1.4em;font-variant-numeric:tabular-nums}
+
+  /* Partition tab */
+  .bins{display:grid;gap:8px}
+  .bin{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 6px;min-width:0}
+  .bin h3{margin:0 0 8px;text-align:center;font-size:clamp(19px, 0.7vw + 0.9vh, 30px);font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:.3em;justify-content:center}
+  .chip{min-width:2.1em;padding:.25em .25em;text-align:center;border:1px solid var(--border);border-radius:6px;
+        font-size:clamp(15px, 0.6vw + 0.9vh, 26px);font-variant-numeric:tabular-nums;background:#fafafa;cursor:default}
+  .chip.hidden{visibility:hidden}
+  .chip.new{background:var(--ink);border-color:var(--ink);color:#fff}
+  .chip.dots{border-color:transparent;background:transparent;color:var(--muted)}
+  .chip:not(.dots):not(.hidden):hover{border-color:var(--focus)}
+
+  @media (max-width:860px){.layout{grid-template-columns:1fr;padding:12px 16px}header{padding:16px 16px 0}
+    .board{grid-template-columns:1fr}.grid{width:calc(100vw - 32px)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Congruence Classes</h1>
+  <div class="tabs">
+    <button id="tab-grid" class="on">Grid</button>
+    <button id="tab-matrix">Class walk</button>
+    <button id="tab-part">Partition</button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Controls -->
+  <div class="panel">
+    <div class="group">
+      <label class="label" for="nNum">Modulus n</label>
+      <div class="pair">
+        <input type="range" id="nRange" min="2" max="20" step="1">
+        <input type="number" id="nNum" min="2" max="20" step="1">
+      </div>
+    </div>
+
+    <!-- Grid controls -->
+    <div id="ctl-grid">
+      <div class="group">
+        <span class="label">Display</span>
+        <label class="toggle"><input type="checkbox" id="revealChk">Show all congruent numbers</label>
+        <label class="toggle"><input type="checkbox" id="alignChk">Align columns by remainder</label>
+      </div>
+      <div class="group">
+        <button id="clearBtn">Clear</button>
+      </div>
+    </div>
+
+    <!-- Class walk controls -->
+    <div id="ctl-matrix" hidden>
+      <div class="group">
+        <span class="label">Move through the class</span>
+        <div class="buttons">
+          <button id="wPrev">← Previous</button>
+          <button id="wNext">Next →</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="buttons">
+          <button id="wPlay" class="primary">Play</button>
+          <button id="wReset">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Partition controls -->
+    <div id="ctl-part" hidden>
+      <div class="group">
+        <span class="label">Sort integers</span>
+        <div class="buttons">
+          <button id="pStep">Step</button>
+          <button id="pPlay" class="primary">Play</button>
+          <button id="pReset">Reset</button>
+        </div>
+      </div>
+      <div class="group">
+        <span class="label">Display</span>
+        <label class="toggle"><input type="checkbox" id="negChk">Include negative numbers</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visualizations -->
+  <div class="stage">
+    <div id="view-grid">
+      <div class="prompt" id="prompt"></div>
+      <div class="board">
+        <div class="grid" id="grid"></div>
+        <div class="side"><div class="readout" id="readout"></div></div>
+      </div>
+    </div>
+    <div id="view-matrix" hidden>
+      <div class="prompt" id="mPrompt"></div>
+      <div class="board">
+        <div class="grid" id="walk"></div>
+        <div class="side">
+          <div class="classset" id="wSet"></div>
+          <div class="readout" id="mReadout"></div>
+        </div>
+      </div>
+    </div>
+    <div id="view-part" hidden>
+      <div class="prompt" id="pPrompt"></div>
+      <div class="bins" id="bins"></div>
+      <div class="readout" id="pReadout"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MAX = 100, MIN_N = 2, MAX_N = 20;
+const st = {
+  n: 7,
+  tab: 'grid',
+  base: null,          // grid: the first number selected
+  picks: [],           // grid: numbers selected after it, in order
+};
+
+const $ = id => document.getElementById(id);
+const mod = (x, n) => ((x % n) + n) % n;
+const fmt = v => v < 0 ? '\u2212' + (-v) : String(v);          // proper minus sign
+const paren = v => v < 0 ? '(' + fmt(v) + ')' : String(v);
+const congruent = x => mod(x - st.base, st.n) === 0;           // n divides x - b
+
+// One sentence explaining a vs b using the definition  a ≡ b (mod n)  ⇔  n | (a − b)
+function explain(a, b){
+  const n = st.n, d = a - b;
+  if (mod(d, n) === 0)
+    return `${fmt(a)} \u2212 ${paren(b)} = ${fmt(d)} = ${paren(d / n)} \u00b7 ${n}, so <span class="g">${fmt(a)} \u2261 ${fmt(b)} (mod ${n})</span>`;
+  return `${fmt(a)} \u2212 ${paren(b)} = ${fmt(d)} is not a multiple of ${n}, so <span class="r">${fmt(a)} \u2262 ${fmt(b)} (mod ${n})</span>`;
+}
+
+/* =========================================================
+   TAB 1: GRID  (unchanged behavior)
+   ========================================================= */
+
+// 10 columns normally; aligned: smallest multiple of n that is at least 10,
+// so each column contains a single congruence class
+function columns(){
+  return $('alignChk').checked ? st.n * Math.ceil(10 / st.n) : 10;
+}
+
+function buildGrid(){
+  const cols = columns(), g = $('grid');
+  g.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  g.style.setProperty('--ar', cols / Math.ceil(MAX / cols));   // columns / rows
+  g.parentElement.classList.toggle('below', cols > 10);
+  g.innerHTML = '';
+  for (let x = 1; x <= MAX; x++){
+    const c = document.createElement('div');
+    c.className = 'cell';
+    c.dataset.x = x;
+    c.innerHTML = `<span>${x}</span>`;
+    c.addEventListener('click', () => onCell(x));
+    g.appendChild(c);
+  }
+  paint();
+}
+
+function paint(){
+  const reveal = $('revealChk').checked && st.base !== null;
+  for (const c of $('grid').children){
+    const x = +c.dataset.x;
+    let cls = 'cell';
+    if (x === st.base) cls += ' base';
+    else if (st.picks.includes(x)) cls += congruent(x) ? ' good' : ' bad';
+    else if (reveal && congruent(x)) cls += ' hint';
+    c.className = cls;
+  }
+  $('prompt').innerHTML = st.base === null
+    ? 'Select a number.'
+    : `Which numbers are congruent to <b>${st.base}</b> (mod ${st.n})?`;
+  const x = st.picks[st.picks.length - 1];
+  $('readout').innerHTML = (st.base === null || x === undefined) ? '' : explain(x, st.base);
+}
+
+function onCell(x){
+  if (st.base === null){ st.base = x; }                       // first click: choose b
+  else if (x === st.base){ st.base = null; st.picks = []; }   // click b again: start over
+  else {
+    const i = st.picks.indexOf(x);
+    if (i >= 0) st.picks.splice(i, 1);                         // click a pick again: unselect it
+    else st.picks.push(x);
+  }
+  paint();
+}
+
+/* =========================================================
+   TAB 2: CLASS WALK  — pick b in 1..100, then step through b + kn
+   ========================================================= */
+const W_MAX = 100;
+const wk = { base: null, lo: null, hi: null, cur: null };   // filled members run from lo to hi in steps of n
+let wTimer = null;
+
+function buildWalk(){
+  const g = $('walk');
+  g.style.gridTemplateColumns = 'repeat(10, 1fr)';
+  g.style.setProperty('--ar', 1);   // 10 columns, 10 rows
+  g.innerHTML = '';
+  for (let x = 1; x <= W_MAX; x++){
+    const c = document.createElement('div');
+    c.className = 'cell';
+    c.dataset.x = x;
+    c.innerHTML = `<span>${x}</span>`;
+    c.addEventListener('click', () => { wStop(); wk.base = wk.lo = wk.hi = wk.cur = x; paintWalk(); });
+    g.appendChild(c);
+  }
+  paintWalk();
+}
+
+const wFilled = x => wk.base !== null && x >= wk.lo && x <= wk.hi && mod(x - wk.base, st.n) === 0;
+const canNext = () => wk.base !== null && wk.hi + st.n <= W_MAX;
+const canPrev = () => wk.base !== null && wk.lo - st.n >= 1;
+
+function paintWalk(){
+  const n = st.n, b = wk.base;
+  for (const c of $('walk').children){
+    const x = +c.dataset.x;
+    let cls = 'cell';
+    if (x === b) cls += ' base';
+    else if (wFilled(x)) cls += ' good';
+    if (x === wk.cur && b !== null) cls += ' cur';
+    c.className = cls;
+  }
+  $('mPrompt').innerHTML = b === null
+    ? 'Select a number.'
+    : `The congruence class of <b>${b}</b> mod ${n}`;
+
+  // the class written as a set, listing the members found so far
+  if (b === null) $('wSet').innerHTML = '';
+  else {
+    const mem = [];
+    for (let x = wk.lo; x <= wk.hi; x += n) mem.push(x);
+    $('wSet').innerHTML = `[${b}] = { …, ${mem.join(', ')}, … }`;
+  }
+
+  // how the current number is reached from b
+  if (b === null || wk.cur === b) $('mReadout').innerHTML = '';
+  else {
+    const k = (wk.cur - b) / n;
+    $('mReadout').innerHTML = `${wk.cur} = ${b} + ${paren(k)} · ${n}, so <span class="g">${wk.cur} ≡ ${b} (mod ${n})</span>`;
+  }
+
+  $('wNext').disabled = !canNext();
+  $('wPrev').disabled = !canPrev();
+  $('wPlay').textContent = wTimer ? 'Pause' : 'Play';
+}
+
+function wNext(){ if (canNext()){ wk.hi += st.n; wk.cur = wk.hi; return true; } return false; }
+function wPrev(){ if (canPrev()){ wk.lo -= st.n; wk.cur = wk.lo; return true; } return false; }
+function wStop(){ if (wTimer){ clearInterval(wTimer); wTimer = null; } }
+
+$('wNext').onclick = () => { wStop(); wNext(); paintWalk(); };
+$('wPrev').onclick = () => { wStop(); wPrev(); paintWalk(); };
+$('wReset').onclick = () => { wStop(); wk.base = wk.lo = wk.hi = wk.cur = null; paintWalk(); };
+$('wPlay').onclick = () => {
+  if (wTimer){ wStop(); paintWalk(); return; }
+  if (wk.base === null) return;
+  if (!canNext() && !canPrev()) wk.lo = wk.hi = wk.cur = wk.base;   // already complete: replay from b
+  // fill upward from b, then downward, one number at a time
+  wTimer = setInterval(() => { if (!wNext() && !wPrev()) wStop(); paintWalk(); }, 700);
+  paintWalk();
+};
+
+/* =========================================================
+   TAB 3: PARTITION  — integers dropped one at a time into the n classes
+   ========================================================= */
+const P_HI = 99, P_NEG = -14;
+let pDrop = 0, pTimer = null;
+
+const pNums = () => { const lo = $('negChk').checked ? P_NEG : 0; return Array.from({length: P_HI - lo + 1}, (_, i) => lo + i); };
+const pDone = () => pDrop >= pNums().length;
+
+function buildBins(){
+  const n = st.n, nums = pNums(), box = $('bins');
+  // as many bins per row as fit at a readable width (about 82px each)
+  const w = $('view-part').clientWidth || $('view-grid').clientWidth || 900;
+  const perRow = Math.max(1, Math.min(n, Math.floor((w + 8) / 90)));
+  box.style.gridTemplateColumns = `repeat(${perRow}, minmax(0, 1fr))`;
+  let html = '';
+  for (let r = 0; r < n; r++){
+    html += `<div class="bin"><h3>[${r}]</h3><div class="chips"><span class="chip dots">\u2026</span>`;
+    nums.forEach((x, k) => {
+      if (mod(x, n) === r) html += `<span class="chip" data-k="${k}" data-x="${x}">${fmt(x)}</span>`;
+    });
+    html += `<span class="chip dots">\u2026</span></div></div>`;
+  }
+  box.innerHTML = html;
+  $('pPrompt').innerHTML = `The congruence classes mod ${n}`;
+  paintBins();
+}
+
+function paintBins(){
+  for (const c of $('bins').querySelectorAll('.chip[data-k]')){
+    const k = +c.dataset.k;
+    c.className = 'chip' + (k >= pDrop ? ' hidden' : '') + (k === pDrop - 1 && !pDone() ? ' new' : '');
+  }
+  const nums = pNums();
+  $('pReadout').innerHTML = pDrop > 0 && !pDone() ? placeText(nums[pDrop - 1]) : '';
+  $('pPlay').textContent = pTimer ? 'Pause' : 'Play';
+}
+
+function placeText(x){
+  const n = st.n, q = Math.floor(x / n), r = mod(x, n);
+  return `${fmt(x)} = ${paren(q)} \u00b7 ${n} + ${r}, so ${fmt(x)} \u2208 [${r}]`;
+}
+
+function pStop(){ if (pTimer){ clearInterval(pTimer); pTimer = null; } }
+$('pStep').onclick = () => { pStop(); if (!pDone()) pDrop++; paintBins(); };
+$('pReset').onclick = () => { pStop(); pDrop = 0; paintBins(); };
+$('pPlay').onclick = () => {
+  if (pTimer){ pStop(); paintBins(); return; }
+  if (pDone()) pDrop = 0;
+  pTimer = setInterval(() => { pDrop++; if (pDone()) pStop(); paintBins(); }, 120);
+  paintBins();
+};
+$('negChk').onchange = () => { pStop(); pDrop = pNums().length; buildBins(); };
+$('bins').addEventListener('mouseover', e => {
+  const c = e.target;
+  if (c.dataset && c.dataset.x !== undefined && !c.classList.contains('hidden')) $('pReadout').innerHTML = placeText(+c.dataset.x);
+});
+$('bins').addEventListener('mouseleave', paintBins);
+
+/* =========================================================
+   SHARED CONTROLS
+   ========================================================= */
+function setN(v){
+  if (!Number.isFinite(v)) return;
+  st.n = Math.min(MAX_N, Math.max(MIN_N, Math.round(v)));
+  $('nRange').value = st.n;
+  if (document.activeElement !== $('nNum')) $('nNum').value = st.n;
+  if ($('alignChk').checked) buildGrid(); else paint();       // grid picks stay; colors re-evaluate for the new n
+  wStop(); if (wk.base !== null){ wk.lo = wk.hi = wk.cur = wk.base; } paintWalk();   // new n: restart the walk from b
+  if (pTimer){ pStop(); pDrop = pNums().length; }
+  buildBins();
+}
+
+function setTab(t){
+  st.tab = t;
+  for (const name of ['grid', 'matrix', 'part']){
+    $('tab-' + name).classList.toggle('on', name === t);
+    $('ctl-' + name).hidden = name !== t;
+    $('view-' + name).hidden = name !== t;
+  }
+  if (t === 'part') buildBins();
+}
+window.addEventListener('resize', () => { if (st.tab === 'part') buildBins(); });
+
+$('tab-grid').onclick = () => setTab('grid');
+$('tab-matrix').onclick = () => setTab('matrix');
+$('tab-part').onclick = () => setTab('part');
+
+$('nRange').addEventListener('input', e => setN(+e.target.value));
+$('nNum').addEventListener('input', e => { const v = parseInt(e.target.value, 10); if (v >= MIN_N && v <= MAX_N) setN(v); });
+$('nNum').addEventListener('change', e => { const v = parseInt(e.target.value, 10); setN(Number.isFinite(v) ? v : st.n); e.target.value = st.n; });
+$('revealChk').onchange = paint;
+$('alignChk').onchange = buildGrid;
+$('clearBtn').onclick = () => { st.base = null; st.picks = []; paint(); };
+
+// Start: partition shown fully sorted so the default view already demonstrates the idea
+pDrop = pNums().length;
+buildGrid();
+buildWalk();
+setN(st.n);
+setTab('grid');
+</script>
+</body>
+</html>
