@@ -9,7 +9,6 @@
   <style>
     :root { color-scheme: dark; --bg:#101827; --card:#1b2940; --ink:#f5f6f8; --muted:#bac9dc; --line:#344761; --accent:#f1c777; }
     * { box-sizing:border-box; }
-    html { scroll-behavior:smooth; }
     body { margin:0; background:radial-gradient(ellipse at 75% -15%, #263d5b 0%, transparent 50%),var(--bg); color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; line-height:1.6; }
     .wrap { max-width:1080px; margin:0 auto; padding:64px 24px 90px; }
     .eyebrow { font-size:.79rem; font-weight:750; letter-spacing:.19em; text-transform:uppercase; color:var(--accent); }
@@ -20,8 +19,13 @@
     .topics { display:flex; flex-wrap:wrap; gap:10px; margin-top:26px; }
     .topics a { padding:8px 16px; border:1px solid var(--line); border-radius:999px; color:var(--ink); text-decoration:none; font-weight:650; font-size:.95rem; background:#16233a; transition:border-color .16s,color .16s; }
     .topics a:hover,.topics a:focus-visible { border-color:var(--accent); color:var(--accent); outline:none; }
+    .topics a.active { background:var(--accent); border-color:var(--accent); color:#101827; }
 
-    .section { margin-top:64px; scroll-margin-top:24px; }
+    /* Only the chosen topic is shown; the page opens with just the menu */
+    .section { display:none; }
+    .section.active { display:block; }
+
+    .section { margin-top:48px; }
     .section .course { font-size:.74rem; font-weight:750; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
     .section h2 { margin:4px 0 9px; font-size:1.85rem; letter-spacing:-.025em; }
     .section > p { margin:0 0 25px; color:var(--muted); max-width:720px; }
@@ -170,6 +174,19 @@
         </a>
       </div>
     </section>
+
+    <script>
+      // Show the topic named in the address (#sequences, #oscillators, ...); with none, show only the menu.
+      // Links like .../index.html#sequences open straight to that topic, and the Back button works.
+      function showTopic(){
+        var id = location.hash.slice(1);
+        document.querySelectorAll('.section').forEach(function(sec){ sec.classList.toggle('active', sec.id === id); });
+        document.querySelectorAll('.topics a').forEach(function(a){ a.classList.toggle('active', a.getAttribute('href') === '#' + id); });
+        window.scrollTo(0, 0);   // keep the menu in view
+      }
+      window.addEventListener('hashchange', showTopic);
+      showTopic();
+    </script>
 
     <footer class="note">More mathematical visualizations will be added here over time. <a href="https://github.com/Dan-Look/math-visualizations">View the project on GitHub</a>.</footer>
   </main>
