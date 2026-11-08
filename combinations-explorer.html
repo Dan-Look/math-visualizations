@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combinations Explorer</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2563eb; --withLast:#fde68a; --withoutLast:#bfdbfe;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);font-size:18px}
+  header{padding:14px 24px;background:#fff;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:26px}
+  .main{padding:20px 24px;display:flex;flex-direction:column;gap:20px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .controls{display:flex;flex-wrap:wrap;gap:24px 32px;align-items:flex-end}
+  .ctl label.t{display:block;font-weight:600;margin-bottom:6px}
+  .row{display:flex;gap:10px;align-items:center}
+  input[type=range]{width:200px}
+  input[type=number]{width:70px;font-size:18px;padding:4px 6px;border:1px solid var(--line);border-radius:6px}
+  select{font-size:17px;padding:6px 8px;border-radius:8px;border:1px solid var(--line)}
+  button{font-size:17px;padding:9px 14px;border-radius:8px;border:1px solid var(--line);
+         background:#fff;cursor:pointer;color:var(--ink)}
+  button:hover{background:#f1f5f9}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.primary:hover{background:#1d4ed8}
+  .chk{display:flex;align-items:center;gap:8px;cursor:pointer}
+  .chk input{width:18px;height:18px}
+  .chk.disabled{opacity:.4;cursor:default}
+  .toggles{display:flex;flex-direction:column;gap:6px}
+
+  .countRow{display:flex;flex-wrap:wrap;gap:16px 40px;align-items:center}
+  #caseName{font-size:20px;font-weight:700}
+  #caseEg{color:var(--muted);font-size:16px}
+  #formula{font-size:30px;font-variant-numeric:tabular-nums}
+  .binom{display:inline-flex;align-items:center;vertical-align:middle}
+  .binom .par{font-size:1.9em;font-weight:200;line-height:1}
+  .binom .stk{display:inline-flex;flex-direction:column;align-items:center;line-height:1.05;font-size:.8em;margin:0 2px}
+  .frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.8em;line-height:1.15}
+  .frac .num{border-bottom:2px solid var(--ink);padding:0 4px}
+  .frac .den{padding:0 4px}
+
+  .slots{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .slot{width:56px;height:56px;border:3px dashed #cbd5e1;border-radius:10px;display:flex;align-items:center;justify-content:center}
+  .items{display:flex;gap:6px;flex-wrap:wrap}
+
+  .tok{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;
+       color:#fff;font-weight:700;font-size:15px;flex:none}
+  .tok.fruit{background:none !important;font-size:24px;width:30px}
+  .slot .tok{width:44px;height:44px;font-size:20px}
+  .slot .tok.fruit{font-size:36px}
+
+  .listHead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+  #listed{margin-left:auto;font-size:18px;color:var(--muted);font-variant-numeric:tabular-nums}
+  #list{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}
+  .out{display:inline-flex;gap:3px;padding:5px 7px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .out.newest{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+  .out.withLast{background:var(--withLast)}
+  .out.withoutLast{background:var(--withoutLast)}
+  .out.empty{color:var(--muted);font-size:20px;padding:5px 14px}
+  .group{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:2px solid #cbd5e1;border-radius:10px;background:#f8fafc;align-items:center}
+  .group .glab{font-size:14px;color:var(--muted);width:100%}
+  #capNote{color:var(--muted);font-size:15px;margin-top:10px}
+
+  .bottom{display:grid;grid-template-columns:1fr;gap:20px}
+  .bottom.withPascal{grid-template-columns:1fr minmax(340px,0.7fr)}
+  @media (max-width:1000px){.bottom.withPascal{grid-template-columns:1fr}}
+  #pascal{display:flex;flex-direction:column;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
+  .prow{display:flex;gap:4px}
+  .pc{min-width:40px;height:32px;padding:0 4px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+      font-size:14px;background:#f1f5f9;color:#475569}
+  .pc.target{background:#16a34a;color:#fff;font-weight:700}
+  .pc.pA{background:#f59e0b;color:#fff;font-weight:700}
+  .pc.pB{background:#3b82f6;color:#fff;font-weight:700}
+  #pascalEq{font-size:20px;margin-top:14px;text-align:center;line-height:1.7}
+  .sw{display:inline-block;width:16px;height:16px;border-radius:3px;vertical-align:-3px;margin-right:4px}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+<header><h1>Combinations Explorer</h1></header>
+
+<div class="main">
+  <div class="panel controls">
+    <div class="ctl">
+      <label class="t">Choices <i>n</i></label>
+      <div class="row">
+        <input type="range" id="nSlider" min="1" max="20" value="5">
+        <input type="number" id="nNum" min="1" max="20" value="5">
+      </div>
+    </div>
+    <div class="ctl">
+      <label class="t">Slots <i>k</i></label>
+      <div class="row">
+        <input type="range" id="kSlider" min="0" max="5" value="3">
+        <input type="number" id="kNum" min="0" max="5" value="3">
+      </div>
+    </div>
+    <div class="toggles">
+      <label class="chk"><input type="checkbox" id="ordered"> Order matters</label>
+      <label class="chk"><input type="checkbox" id="rep"> Repetition allowed</label>
+    </div>
+    <div class="toggles">
+      <label class="chk" id="groupLab"><input type="checkbox" id="group"> Group orderings of the same selection</label>
+      <label class="chk" id="pascalLab"><input type="checkbox" id="pascalOn"> Show Pascal's triangle</label>
+    </div>
+    <div class="ctl">
+      <label class="t">Items</label>
+      <select id="style"><option value="num">Numbers</option><option value="fruit">Fruit</option></select>
+    </div>
+  </div>
+
+  <div class="panel countRow">
+    <div>
+      <div id="caseName"></div>
+      <div id="caseEg"></div>
+    </div>
+    <div class="slots" id="slots"></div>
+    <div id="formula"></div>
+  </div>
+
+  <div class="bottom" id="bottom">
+    <div class="panel">
+      <div class="listHead">
+        <button class="primary" id="stepBtn">Next</button>
+        <button id="playBtn">Play</button>
+        <button id="allBtn">Show all</button>
+        <button id="resetBtn">Reset</button>
+        <span style="margin-left:12px">Speed</span>
+        <input type="range" id="speed" min="1" max="40" value="6" style="width:140px">
+        <span id="listed"></span>
+      </div>
+      <div id="list"></div>
+      <div id="capNote"></div>
+    </div>
+    <div class="panel hidden" id="pascalPanel">
+      <div id="pascal"></div>
+      <div id="pascalEq"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const CAP = 2000;                       // most outcomes we will list on screen
+const FRUIT = ['🍎','🍌','🍇','🍓','🍒','🍑','🍍','🥝','🍋','🫐','🥭','🍐','🍉','🥥','🍈','🍊','🥑','🍅','🌽','🥕'];
+let n = 5, k = 3, shown = 0, timer = null;
+let outcomes = [];                      // listed outcomes (up to CAP), each an array of item indices 0..n-1
+let groups = null;                      // when grouping: [{key, start, size}]
+
+/* ---------- counting (BigInt, exact) ---------- */
+const B = BigInt;
+function fall(a, m){ let r = 1n; for (let i = 0; i < m; i++) r *= B(a - i); return r; }   // a(a-1)...(a-m+1)
+function fact(m){ return fall(m, m); }
+function choose(a, b){ if (b < 0 || b > a) return 0n; return fall(a, b) / fact(b); }
+function total(ord, rep){
+  if (ord && rep) return B(n) ** B(k);
+  if (ord) return fall(n, k);
+  if (rep) return choose(n + k - 1, k);
+  return choose(n, k);
+}
+const big = v => v.toLocaleString('en-US');
+
+/* ---------- enumeration (lexicographic, stops at CAP) ---------- */
+function enumerate(ord, rep, grouped){
+  const out = [];
+  const seq = [];
+  function rec(pos, lo, used){
+    if (out.length >= CAP) return;
+    if (pos === k){ out.push(seq.slice()); return; }
+    for (let i = (ord ? 0 : lo); i < n; i++){
+      if (!rep && used[i]) continue;
+      seq.push(i); used[i] = true;
+      rec(pos + 1, rep ? i : i + 1, used);
+      seq.pop(); used[i] = false;
+      if (out.length >= CAP) return;
+    }
+  }
+  if (!(ord && grouped)){ rec(0, 0, []); return {list: out, groups: null}; }
+
+  // grouped: list each unordered selection, then all distinct orderings of it
+  const sel = enumerate(false, rep, false).list;
+  const gs = [];
+  for (const s of sel){
+    if (out.length >= CAP) break;
+    const start = out.length;
+    distinctPerms(s, p => { if (out.length < CAP) out.push(p); });
+    gs.push({key: s, start, size: out.length - start});
+  }
+  return {list: out, groups: gs};
+}
+// distinct permutations of a sorted array, in lexicographic order
+function distinctPerms(arr, emit){
+  const a = arr.slice();
+  while (true){
+    emit(a.slice());
+    let i = a.length - 2;
+    while (i >= 0 && a[i] >= a[i + 1]) i--;
+    if (i < 0) return;
+    let j = a.length - 1;
+    while (a[j] <= a[i]) j--;
+    [a[i], a[j]] = [a[j], a[i]];
+    for (let l = i + 1, r = a.length - 1; l < r; l++, r--) [a[l], a[r]] = [a[r], a[l]];
+  }
+}
+
+/* ---------- drawing helpers ---------- */
+const color = i => `hsl(${Math.round(i * 360 / Math.max(n, 6))} 65% 45%)`;
+function tok(i){
+  if ($('style').value === 'fruit') return `<span class="tok fruit">${FRUIT[i]}</span>`;
+  return `<span class="tok" style="background:${color(i)}">${i + 1}</span>`;
+}
+const binom = (a, b) => `<span class="binom"><span class="par">(</span><span class="stk"><span>${a}</span><span>${b}</span></span><span class="par">)</span></span>`;
+const frac = (a, b) => `<span class="frac"><span class="num">${a}</span><span class="den">${b}</span></span>`;
+function prod(from, m){ const t = []; for (let i = 0; i < m; i++) t.push(from - i); return t.length ? t.join(' · ') : '1'; }
+
+/* ---------- main render ---------- */
+function rebuild(){
+  stop();
+  const ord = $('ordered').checked, rep = $('rep').checked;
+  // without repetition we cannot fill more slots than there are choices
+  const kmax = rep ? 10 : n;
+  $('kSlider').max = kmax; $('kNum').max = kmax;
+  if (k > kmax){ k = kmax; }
+  $('kSlider').value = k; $('kNum').value = k;
+
+  const canGroup = ord;
+  $('group').disabled = !canGroup; $('groupLab').classList.toggle('disabled', !canGroup);
+  const canPascal = !ord && !rep;
+  $('pascalOn').disabled = !canPascal; $('pascalLab').classList.toggle('disabled', !canPascal);
+
+  const res = enumerate(ord, rep, canGroup && $('group').checked);
+  outcomes = res.list; groups = res.groups;
+  shown = outcomes.length;               // open with everything listed; Reset to step through
+  renderHead(ord, rep);
+  renderList();
+  renderPascal();
+}
+
+function renderHead(ord, rep){
+  const names = {
+    'tt': ['Order matters, repetition allowed', 'like a PIN or a license plate'],
+    'tf': ['Order matters, no repetition', 'like gold, silver, and bronze in a race'],
+    'ft': ['Order doesn’t matter, repetition allowed', 'like choosing scoops of ice cream for a bowl'],
+    'ff': ['Order doesn’t matter, no repetition', 'like choosing a committee']
+  }[(ord ? 't' : 'f') + (rep ? 't' : 'f')];
+  $('caseName').textContent = names[0];
+  $('caseEg').textContent = names[1];
+
+  let s = '';
+  for (let i = 0; i < k; i++) s += `<div class="slot"></div>`;
+  $('slots').innerHTML = (k ? s : '<span style="color:var(--muted)">(no slots)</span>');
+
+  const T = total(ord, rep);
+  let f;
+  if (ord && rep) f = `${n}<sup>${k}</sup> = ${big(T)}`;
+  else if (ord) f = `${prod(n, k)} = ${big(T)}`;
+  else if (!rep) f = `${binom(n, k)} = ${frac(prod(n, k), prod(k, k))} = ${frac(big(fall(n, k)), big(fact(k)))} = ${big(T)}`;
+  else f = `${binom(n + k - 1, k)} = ${big(T)}`;
+  $('formula').innerHTML = f;
+}
+
+function renderList(){
+  const ord = $('ordered').checked, rep = $('rep').checked;
+  const T = total(ord, rep);
+  const split = $('pascalOn').checked && !ord && !rep && n >= 1 && k >= 1;
+  const card = (o, idx) => {
+    let cls = 'out' + (idx === shown - 1 && shown < outcomes.length ? ' newest' : '');
+    if (split) cls += o.includes(n - 1) ? ' withLast' : ' withoutLast';
+    if (!o.length) return `<span class="out empty">∅</span>`;
+    return `<span class="${cls}">${o.map(tok).join('')}</span>`;
+  };
+  let html = '';
+  if (groups){
+    for (const g of groups){
+      if (g.start >= shown) break;
+      const end = Math.min(g.start + g.size, shown);
+      const lab = `{${g.key.map(i => i + 1).join(', ')}} · ${g.size} ordering${g.size === 1 ? '' : 's'}`;
+      html += `<div class="group"><div class="glab">${lab}</div>`;
+      for (let i = g.start; i < end; i++) html += card(outcomes[i], i);
+      html += `</div>`;
+    }
+  } else {
+    for (let i = 0; i < shown; i++) html += card(outcomes[i], i);
+  }
+  $('list').innerHTML = html;
+  $('listed').textContent = `Listed: ${big(B(shown))} of ${big(T)}`;
+  $('capNote').textContent = T > B(CAP) ? `There are too many to list them all, so only the first ${CAP.toLocaleString()} are shown.` : '';
+
+  // fill the slots with the most recently listed outcome
+  const slots = document.querySelectorAll('#slots .slot');
+  const cur = shown ? outcomes[shown - 1] : null;
+  slots.forEach((el, i) => el.innerHTML = cur ? tok(cur[i]) : '');
+}
+
+function renderPascal(){
+  const on = $('pascalOn').checked && !$('pascalOn').disabled;
+  $('pascalPanel').classList.toggle('hidden', !on);
+  $('bottom').classList.toggle('withPascal', on);
+  if (!on) return;
+  const rows = Math.max(n, 6);
+  let html = '';
+  for (let r = 0; r <= rows; r++){
+    html += '<div class="prow">';
+    for (let c = 0; c <= r; c++){
+      let cls = 'pc';
+      if (r === n && c === k) cls += ' target';
+      else if (r === n - 1 && c === k - 1) cls += ' pA';
+      else if (r === n - 1 && c === k) cls += ' pB';
+      html += `<span class="${cls}">${choose(r, c)}</span>`;
+    }
+    html += '</div>';
+  }
+  $('pascal').innerHTML = html;
+  const last = $('style').value === 'fruit' ? FRUIT[n - 1] : `item ${n}`;
+  $('pascalEq').innerHTML = (n >= 1 && k >= 1)
+    ? `${binom(n, k)} = ${binom(n - 1, k - 1)} + ${binom(n - 1, k)}<br>` +
+      `${choose(n, k)} = ${choose(n - 1, k - 1)} + ${choose(n - 1, k)}<br>` +
+      `<span style="font-size:16px"><span class="sw" style="background:var(--withLast)"></span>contains ${last} &nbsp; ` +
+      `<span class="sw" style="background:var(--withoutLast)"></span>doesn’t contain ${last}</span>`
+    : '';
+}
+
+/* ---------- stepping ---------- */
+function step(){ if (shown < outcomes.length){ shown++; renderList(); } if (shown >= outcomes.length) stop(); }
+function play(){
+  if (timer){ stop(); return; }
+  if (shown >= outcomes.length) shown = 0;
+  $('playBtn').textContent = 'Pause';
+  timer = setInterval(step, 1000 / +$('speed').value);
+}
+function stop(){ if (timer){ clearInterval(timer); timer = null; } $('playBtn').textContent = 'Play'; }
+
+$('stepBtn').onclick = () => { stop(); step(); };
+$('playBtn').onclick = play;
+$('allBtn').onclick = () => { stop(); shown = outcomes.length; renderList(); };
+$('resetBtn').onclick = () => { stop(); shown = 0; renderList(); };
+$('speed').addEventListener('input', () => { if (timer){ clearInterval(timer); timer = setInterval(step, 1000 / +$('speed').value); } });
+
+function link(slider, num, onChange){
+  slider.addEventListener('input', () => { num.value = slider.value; onChange(+slider.value); });
+  num.addEventListener('change', () => {
+    let v = Math.round(+num.value);
+    v = Math.max(+slider.min, Math.min(+slider.max, isNaN(v) ? +slider.value : v));
+    num.value = v; slider.value = v; onChange(v);
+  });
+}
+link($('nSlider'), $('nNum'), v => { n = v; rebuild(); });
+link($('kSlider'), $('kNum'), v => { k = v; rebuild(); });
+['ordered', 'rep', 'group'].forEach(id => $(id).addEventListener('change', rebuild));
+$('pascalOn').addEventListener('change', () => { renderList(); renderPascal(); });
+$('style').addEventListener('change', () => { renderHead($('ordered').checked, $('rep').checked); renderList(); renderPascal(); });
+
+rebuild();
+</script>
+</body>
+</html>

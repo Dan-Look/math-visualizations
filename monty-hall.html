@@ -29,6 +29,7 @@
   button:disabled{opacity:.45;cursor:default}
   button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
   button.primary:hover:not(:disabled){background:#1d4ed8}
+  #kMax.on{background:#eff6ff;border-color:var(--accent);color:var(--accent);font-weight:700}
   .chk{display:flex;align-items:center;gap:8px;cursor:pointer}
   .chk input{width:18px;height:18px}
 
@@ -69,11 +70,12 @@
 </head>
 <body>
 <header>
-  <h1>The Monty Hall Problem</h1>
+  <h1 id="title">The Monty Hall Problem</h1>
   <div class="tabs">
     <button id="tabPlay" class="active">Play</button>
     <button id="tabSim">Simulate</button>
   </div>
+  <label class="chk" style="margin-left:auto"><input type="checkbox" id="manxy"> Manxy Hall</label>
 </header>
 
 <div class="main">
@@ -122,8 +124,8 @@
       </table>
       <details style="margin-top:14px">
         <summary>Assumptions</summary>
-        <p>The car is behind a door chosen uniformly at random. The host knows where the car is, never opens your door
-        or the car's door, and chooses which goat doors to open at random. When <i>k</i> &lt; <i>n</i> − 2, "switch" means
+        <p>The <span class="gN">car</span> is behind a door chosen uniformly at random. The host knows where the <span class="gN">car</span> is, never opens your door
+        or the <span class="gN">car</span>'s door, and chooses which <span class="bN">goat</span> doors to open at random. When <i>k</i> &lt; <i>n</i> − 2, "switch" means
         moving to one of the other closed doors chosen at random.</p>
       </details>
     </div>
@@ -144,6 +146,12 @@
 const $ = id => document.getElementById(id);
 const MAXG = 10000;
 let n = 3, k = 1, mode = 'play';
+let allButOne = true;                  // default: host opens every door except one
+const PRIZES = {
+  monty: {title:'The Monty Hall Problem', good:'🚗', bad:'🐐', goodName:'car', badName:'goat', badPlural:'goats', win:'won the car!', lose:'got a goat.'},
+  manxy: {title:'The Manxy Hall Problem', good:'🐱', bad:'💰', goodName:'kitten', badName:'cash', badPlural:'cash', win:'won the kitten!', lose:'got a pile of cash.'}
+};
+let PZ = PRIZES.monty;
 let game = null;                       // current game shown on the doors
 let tally = {play: newTally(), sim: newTally()};
 let hist = {stay: [], sw: []};         // running fractions for simulation
@@ -177,17 +185,26 @@ function link(slider, num, onChange){
 }
 function setK(v){
   k = v; $('kSlider').value = v; $('kNum').value = v;
+  allButOne = (k === n - 2);
+  $('kMax').classList.toggle('on', allButOne);
   resetAll();
 }
 link($('nSlider'), $('nNum'), v => {
   n = v;
   $('kSlider').max = n - 2; $('kNum').max = n - 2;
-  if (k > n - 2) k = n - 2;
+  if (allButOne || k > n - 2) k = n - 2;
   setK(k);
 });
 link($('kSlider'), $('kNum'), v => setK(v));
 $('kMax').onclick = () => setK(n - 2);
 $('showTheory').addEventListener('change', renderStats);
+$('manxy').addEventListener('change', () => {
+  PZ = $('manxy').checked ? PRIZES.manxy : PRIZES.monty;
+  $('title').textContent = PZ.title; document.title = PZ.title;
+  document.querySelectorAll('.gN').forEach(e => e.textContent = PZ.goodName);
+  document.querySelectorAll('.bN').forEach(e => e.textContent = PZ.badName);
+  renderDoors();
+});
 
 $('tabPlay').onclick = () => setMode('play');
 $('tabSim').onclick = () => setMode('sim');
@@ -280,7 +297,7 @@ function renderDoors(){
       if (mode === 'play' && (g.phase === 'pick' || (g.phase === 'decide' && !g.opened.has(d)))) e.classList.add('clickable');
     }
     if (reveal) e.classList.add('revealed');
-    const prize = reveal ? `<span class="prize" style="font-size:${sz.p}px">${g.car === d ? '🚗' : '🐐'}</span>` : '<span class="knob"></span>';
+    const prize = reveal ? `<span class="prize" style="font-size:${sz.p}px">${g.car === d ? PZ.good : PZ.bad}</span>` : '<span class="knob"></span>';
     e.innerHTML = `<span class="num">${d + 1}</span>${prize}` + (tag && n <= 25 ? `<span class="tag" style="color:${tag==='Your pick'?'var(--stay)':'var(--switch)'}">${tag}</span>` : '');
     e.onclick = () => clickDoor(d);
     box.appendChild(e);
@@ -291,16 +308,16 @@ function renderMsg(){
   const g = game, m = $('msg');
   if (mode === 'sim'){
     if (!g){ m.textContent = 'Run some games.'; return; }
-    m.innerHTML = `Last game: car behind door ${g.car + 1}. ` +
+    m.innerHTML = `Last game: ${PZ.goodName} behind door ${g.car + 1}. ` +
       `Stay (door ${g.pick + 1}) <span style="color:${g.pick===g.car?'var(--win)':'#b91c1c'}">${g.pick===g.car?'wins':'loses'}</span>; ` +
       `switch (door ${g.final + 1}) <span style="color:${g.final===g.car?'var(--win)':'#b91c1c'}">${g.final===g.car?'wins':'loses'}</span>.`;
     return;
   }
   if (g.phase === 'pick') m.textContent = 'Pick a door.';
-  else if (g.phase === 'decide') m.textContent = `The host opened ${k} door${k>1?'s':''} with goats. Click your door to stay, or another closed door to switch.`;
+  else if (g.phase === 'decide') m.textContent = `The host opened ${k} door${k>1?'s':''} with ${PZ.badPlural}. Click your door to stay, or another closed door to switch.`;
   else {
     const won = g.final === g.car, stayed = g.final === g.pick;
-    m.innerHTML = `You ${stayed ? 'stayed' : 'switched'} and <span style="color:${won?'var(--win)':'#b91c1c'}">${won ? 'won the car!' : 'got a goat.'}</span>`;
+    m.innerHTML = `You ${stayed ? 'stayed' : 'switched'} and <span style="color:${won?'var(--win)':'#b91c1c'}">${won ? PZ.win : PZ.lose}</span>`;
   }
 }
 
@@ -359,6 +376,7 @@ function drawGraph(){
   });
 }
 
+$('kMax').classList.add('on');
 setMode('play');
 </script>
 </body>

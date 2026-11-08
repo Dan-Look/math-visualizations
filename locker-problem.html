@@ -38,6 +38,8 @@
           border:3px solid transparent;transition:background .15s;user-select:none}
   .locker.open{background:var(--open);color:#3b2600}
   .locker.hit{border-color:var(--hit)}
+  .locker.pend{border:3px dashed var(--hit)}
+  .locker.last{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--hit)}
   .locker.sel{outline:3px solid var(--accent);outline-offset:2px}
   .locker .cnt{position:absolute;bottom:2px;right:4px;font-size:.62em;font-weight:600;opacity:.9}
   .locker.sq::before{content:"";position:absolute;top:3px;left:3px;width:9px;height:9px;border-radius:50%;background:var(--sq);box-shadow:0 0 0 2px #fff}
@@ -63,14 +65,23 @@
     </div>
 
     <div class="ctl btns">
+      <button class="primary" id="lockerBtn">Next locker</button>
       <button class="primary" id="stepBtn">Next student</button>
       <button id="playBtn">Play</button>
       <button id="finishBtn">Finish</button>
-      <button id="resetBtn">Reset</button>
+      <button id="resetBtn" style="grid-column:1/-1">Reset</button>
     </div>
 
     <div class="ctl">
-      <label class="t">Speed (students per second)</label>
+      <label class="t">Play advances one</label>
+      <div class="row">
+        <label class="chk"><input type="radio" name="pm" id="pmLocker" checked> locker</label>
+        <label class="chk"><input type="radio" name="pm" id="pmStudent"> student</label>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <label class="t">Speed (steps per second)</label>
       <div class="row">
         <input type="range" id="spSlider" min="1" max="20" value="4">
         <input type="number" id="spNum" min="1" max="20" value="4">
@@ -78,6 +89,7 @@
     </div>
 
     <div class="ctl">
+      <label class="chk"><input type="checkbox" id="showPreview"> Preview current student's lockers</label>
       <label class="chk"><input type="checkbox" id="showCounts"> Show number of toggles</label>
       <label class="chk"><input type="checkbox" id="showSquares"> Mark perfect squares</label>
       <label class="chk"><input type="checkbox" id="showList"> List open lockers</label>
@@ -93,12 +105,14 @@
     <div class="status">
       <div>Student: <b id="kOut">0</b> / <b id="nOut">100</b></div>
       <div>Open lockers: <b id="openOut">0</b></div>
+      <div id="passOut" style="color:var(--muted)"></div>
     </div>
     <div id="grid"></div>
     <div class="legend">
       <span><span class="sw" style="background:var(--closed)"></span>Closed</span>
       <span><span class="sw" style="background:var(--open)"></span>Open</span>
       <span><span class="sw" style="background:#fff;border:3px solid var(--hit)"></span>Toggled by current student</span>
+      <span id="pendLegend" style="display:none"><span class="sw" style="background:#fff;border:3px dashed var(--hit)"></span>Still to toggle</span>
     </div>
     <div id="info"></div>
     <div id="openList"></div>
@@ -135,39 +149,54 @@ function build(){
   }
 }
 
+// k = current student; nextJ = the next locker student k will toggle (> n once k's pass is done)
+let nextJ = 1, last = null;
+
 function reset(){
   stop();
-  k = 0; hit = new Set();
+  k = 0; nextJ = 1; last = null; hit = new Set();
   isOpen = new Array(n + 1).fill(false);
   counts = new Array(n + 1).fill(0);
   if (selected !== null && selected > n) selected = null;
   build(); render();
 }
 
+const passDone = () => k === 0 || nextJ > n;
+const allDone = () => k >= n && nextJ > n;
+
+// Toggle a single locker (starting the next student's pass if needed).
+function toggleOne(){
+  if (allDone()) return false;
+  if (passDone()){ k++; nextJ = k; hit = new Set(); }
+  const j = nextJ;
+  isOpen[j] = !isOpen[j]; counts[j]++; hit.add(j); last = j;
+  nextJ += k;
+  return true;
+}
+// Finish the current student's pass, or run the next student's whole pass.
 function doStudent(){
-  k++;
-  hit = new Set();
-  for (let j = k; j <= n; j += k){ isOpen[j] = !isOpen[j]; counts[j]++; hit.add(j); }
+  if (allDone()) return;
+  if (passDone()) toggleOne();
+  while (nextJ <= n) toggleOne();
+  last = null;
 }
 
-function step(){
-  if (k >= n){ stop(); return; }
-  doStudent(); render();
-  if (k >= n) stop();
-}
+function stepLocker(){ toggleOne(); render(); if (allDone()) stop(); }
+function step(){ doStudent(); render(); if (allDone()) stop(); }
 
 function finish(){
   stop();
-  while (k < n) doStudent();
+  while (!allDone()) doStudent();
   render();
 }
 
 function play(){
   if (timer){ stop(); return; }
-  if (k >= n) reset();
+  if (allDone()) reset();
   $('playBtn').textContent = 'Pause';
-  timer = setInterval(step, 1000 / +$('spNum').value);
+  timer = setInterval(tick, 1000 / +$('spNum').value);
 }
+function tick(){ $('pmLocker').checked ? stepLocker() : step(); }
 function stop(){
   if (timer){ clearInterval(timer); timer = null; }
   $('playBtn').textContent = 'Play';
@@ -180,13 +209,15 @@ function divisors(m){
 }
 
 function render(){
-  const showC = $('showCounts').checked, showS = $('showSquares').checked;
+  const showC = $('showCounts').checked, showS = $('showSquares').checked, showP = $('showPreview').checked;
   let open = 0;
   for (let i = 1; i <= n; i++){
     const e = els[i];
     if (isOpen[i]) open++;
     e.classList.toggle('open', isOpen[i]);
     e.classList.toggle('hit', hit.has(i));
+    e.classList.toggle('last', last === i);
+    e.classList.toggle('pend', showP && k > 0 && i >= nextJ && (i - nextJ) % k === 0);
     e.classList.toggle('sel', selected === i);
     const r = Math.round(Math.sqrt(i));
     e.classList.toggle('sq', showS && r * r === i);
@@ -195,10 +226,15 @@ function render(){
   $('kOut').textContent = k;
   $('nOut').textContent = n;
   $('openOut').textContent = open;
+  $('pendLegend').style.display = showP ? '' : 'none';
+  if (k === 0) $('passOut').textContent = '';
+  else if (!passDone()) $('passOut').innerHTML = `Student ${k} toggles ${k}, ${2*k}, ${3*k}, … &nbsp;·&nbsp; next: locker ${nextJ}`;
+  else $('passOut').textContent = `Student ${k} is done`;
 
   if (selected !== null){
     const ds = divisors(selected);
-    const parts = ds.map(d => `<span class="${d <= k ? 'done' : 'todo'}">${d}</span>`).join(', ');
+    const did = d => d < k || (d === k && selected < nextJ);
+    const parts = ds.map(d => `<span class="${did(d) ? 'done' : 'todo'}">${d}</span>`).join(', ');
     $('info').innerHTML = `Locker <b>${selected}</b> is toggled by students ${parts} &nbsp;—&nbsp; ` +
       `<b>${ds.length}</b> toggles in all (${counts[selected]} so far).`;
   } else {
@@ -215,12 +251,13 @@ function render(){
 }
 
 link($('nSlider'), $('nNum'), v => { n = v; reset(); });
-link($('spSlider'), $('spNum'), v => { if (timer){ clearInterval(timer); timer = setInterval(step, 1000 / v); } });
+link($('spSlider'), $('spNum'), v => { if (timer){ clearInterval(timer); timer = setInterval(tick, 1000 / v); } });
 $('stepBtn').onclick = () => { stop(); step(); };
+$('lockerBtn').onclick = () => { stop(); stepLocker(); };
 $('playBtn').onclick = play;
 $('finishBtn').onclick = finish;
 $('resetBtn').onclick = reset;
-['showCounts','showSquares','showList'].forEach(id => $(id).addEventListener('change', render));
+['showCounts','showSquares','showList','showPreview'].forEach(id => $(id).addEventListener('change', render));
 
 reset();
 </script>
