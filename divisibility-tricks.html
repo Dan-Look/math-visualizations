@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Divisibility Tricks: 3, 9, and 11</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2563eb; --plus:#16a34a; --minus:#dc2626; --discard:#9ca3af;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);font-size:18px}
+  header{padding:14px 24px;background:#fff;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:26px}
+  .main{padding:20px 24px;display:flex;flex-direction:column;gap:20px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .controls{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-end}
+  .ctl label.t{display:block;font-weight:600;margin-bottom:6px}
+  .seg{display:flex}
+  .seg button{border-radius:0;margin-left:-1px;min-width:64px;font-size:20px;font-weight:700}
+  .seg button:first-child{border-radius:8px 0 0 8px}
+  .seg button:last-child{border-radius:0 8px 8px 0}
+  .seg button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button{font-size:17px;padding:9px 14px;border-radius:8px;border:1px solid var(--line);
+         background:#fff;cursor:pointer;color:var(--ink)}
+  button:hover{background:#f1f5f9}
+  .seg button.active:hover{background:#1d4ed8}
+  input[type=text]{font-size:22px;padding:6px 10px;width:300px;border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums;letter-spacing:1px}
+  .chk{display:flex;align-items:center;gap:8px;cursor:pointer}
+  .chk input{width:18px;height:18px}
+
+  #tiles{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px 0 4px}
+  .tile{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .tile .arrow{border:none;background:none;font-size:18px;padding:0 10px;color:var(--muted);cursor:pointer;line-height:1}
+  .tile .arrow:hover{color:var(--accent);background:none}
+  .tile .digit{width:64px;height:80px;border-radius:10px;border:2px solid #cbd5e1;background:#f8fafc;
+               font-size:48px;font-weight:700;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+  .tile .w{font-size:20px;font-weight:700;height:26px}
+  .plus{color:var(--plus)} .minus{color:var(--minus)}
+  .tile.p .digit{border-color:var(--plus)}
+  .tile.m .digit{border-color:var(--minus)}
+  .tile .place{font-size:13px;color:var(--muted)}
+
+  #chain{font-size:28px;text-align:center;line-height:1.8;margin-top:14px;font-variant-numeric:tabular-nums}
+  #chain .arrowr{color:var(--muted);margin:0 10px}
+  #verdict{font-size:26px;text-align:center;margin-top:10px;font-weight:700}
+  #check{font-size:18px;text-align:center;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+  .yes{color:var(--plus)} .no{color:var(--minus)}
+
+  table{border-collapse:collapse;margin:0 auto;font-size:20px;font-variant-numeric:tabular-nums}
+  th,td{padding:7px 14px;border-bottom:1px solid var(--line);text-align:right}
+  th{font-size:15px;color:var(--muted);font-weight:600}
+  td.disc{color:var(--discard)}
+  #sumLine{font-size:22px;text-align:center;margin-top:16px;line-height:1.7;font-variant-numeric:tabular-nums}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+<header><h1>Divisibility Tricks: 3, 9, and 11</h1></header>
+
+<div class="main">
+  <div class="panel controls">
+    <div class="ctl">
+      <label class="t">Divide by</label>
+      <div class="seg" id="seg">
+        <button data-d="3" class="active">3</button>
+        <button data-d="9">9</button>
+        <button data-d="11">11</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label class="t">Number (up to 15 digits)</label>
+      <div style="display:flex;gap:10px">
+        <input type="text" id="numIn" value="5742" inputmode="numeric" maxlength="15">
+        <button id="rand">Random</button>
+      </div>
+    </div>
+    <label class="chk"><input type="checkbox" id="showPlace"> Show place values</label>
+    <label class="chk"><input type="checkbox" id="showWhy"> Show why it works</label>
+  </div>
+
+  <div class="panel">
+    <div id="tiles"></div>
+    <div id="chain"></div>
+    <div id="verdict"></div>
+    <div id="check"></div>
+  </div>
+
+  <div class="panel hidden" id="whyPanel">
+    <table id="whyTable"></table>
+    <div id="sumLine"></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let d = 3;
+let digits = [5, 7, 4, 2];
+const MINUS = '−';
+
+// weight of the digit in place 10^i: +1 for 3 and 9; (−1)^i for 11 (units digit gets +)
+const weight = i => d === 11 ? (i % 2 === 0 ? 1 : -1) : 1;
+
+// One reduction step applied to a (possibly negative) integer v.
+function reduce(v){
+  const neg = v < 0n;
+  const s = (neg ? -v : v).toString();
+  const len = s.length;
+  let sum = 0n, expr = '';
+  for (let p = 0; p < len; p++){
+    const dig = BigInt(s[p]), w = weight(len - 1 - p);
+    sum += w > 0 ? dig : -dig;
+    if (p === 0) expr += (w < 0 ? MINUS : '') + s[p];
+    else expr += (w > 0 ? ' + ' : ` ${MINUS} `) + s[p];
+  }
+  if (neg){ expr = `${MINUS}(${expr})`; sum = -sum; }
+  return {sum, expr};
+}
+const fmt = v => (v < 0n ? MINUS + (-v).toString() : v.toString());
+const small = v => d === 11 ? (v > -11n && v < 11n) : (v >= 0n && v < 10n);
+
+function render(){
+  const N = BigInt(digits.join('') || '0');
+  const len = digits.length;
+  const showP = $('showPlace').checked;
+
+  // digit tiles
+  const box = $('tiles'); box.innerHTML = '';
+  digits.forEach((dig, p) => {
+    const i = len - 1 - p, w = weight(i);
+    const t = document.createElement('div');
+    t.className = 'tile ' + (w > 0 ? 'p' : 'm');
+    t.innerHTML = `<button class="arrow" title="increase">▲</button>
+                   <div class="digit">${dig}</div>
+                   <button class="arrow" title="decrease">▼</button>
+                   <div class="w ${w > 0 ? 'plus' : 'minus'}">${w > 0 ? '+' : MINUS}</div>
+                   <div class="place">${showP ? (10n ** BigInt(i)).toString() : ''}</div>`;
+    const [up, down] = t.querySelectorAll('.arrow');
+    up.onclick = () => { digits[p] = (digits[p] + 1) % 10; sync(); };
+    down.onclick = () => { digits[p] = (digits[p] + 9) % 10; sync(); };
+    box.appendChild(t);
+  });
+
+  // reduction chain
+  // Always apply at least one step to a multi-digit number, then repeat until the result is small.
+  let v = N;
+  const lines = [];
+  while (lines.length === 0 ? N >= 10n : !small(v)){
+    const r = reduce(v);
+    lines.push(`${lines.length === 0 ? `<b>${fmt(v)}</b>` : ''}<span class="arrowr">→</span>${r.expr} = <b>${fmt(r.sum)}</b>`);
+    v = r.sum;
+  }
+  $('chain').innerHTML = lines.length ? lines.join('<br>') : `<b>${fmt(N)}</b>`;
+
+  // verdict: remainder of the final small number equals remainder of N
+  const D = BigInt(d);
+  const rem = ((v % D) + D) % D;
+  $('verdict').innerHTML = rem === 0n
+    ? `<span class="yes">${N} is divisible by ${d}</span>`
+    : `<span class="no">${N} is not divisible by ${d}</span> &nbsp;(remainder ${rem}` +
+      (v < 0n || v >= D ? `, since ${fmt(v)} = ${d} × ${(v - rem) < 0n ? '(' + fmt((v - rem) / D) + ')' : fmt((v - rem) / D)} + ${rem}` : '') + ')';
+  const q = N / D, rr = N % D;
+  $('check').textContent = `Check by long division: ${N} = ${d} × ${q} + ${rr}`;
+
+  // why it works
+  $('whyPanel').classList.toggle('hidden', !$('showWhy').checked);
+  if ($('showWhy').checked) renderWhy(N);
+}
+
+function renderWhy(N){
+  const len = digits.length, D = BigInt(d);
+  let rows = `<tr><th>digit</th><th>place value</th><th>place value = multiple of ${d} ± 1</th><th>multiple of ${d}</th><th>digit × (±1)</th></tr>`;
+  let Q = 0n, S = 0n;
+  const keptTerms = [];
+  digits.forEach((dig, p) => {
+    const i = len - 1 - p, w = weight(i);
+    const P = 10n ** BigInt(i);
+    const m = P - BigInt(w);           // multiple of d
+    const q = m / D;
+    const g = BigInt(dig);
+    Q += g * q; S += w > 0 ? g : -g;
+    keptTerms.push({g: dig, w});
+    const sgn = w > 0 ? '+ 1' : `${MINUS} 1`;
+    rows += `<tr>
+      <td><b>${dig}</b></td>
+      <td>${P}</td>
+      <td>${P} = <span class="disc">${m}</span> ${sgn}</td>
+      <td class="disc">${m === 0n ? '0' : `${d} × ${q}`}</td>
+      <td class="${w > 0 ? 'plus' : 'minus'}"><b>${w > 0 ? '+' : MINUS}${dig}</b></td></tr>`;
+  });
+  $('whyTable').innerHTML = rows;
+
+  const kept = keptTerms.map((t, j) =>
+    j === 0 ? (t.w < 0 ? MINUS : '') + t.g : (t.w > 0 ? ' + ' : ` ${MINUS} `) + t.g).join('');
+  const Sstr = S < 0n ? `${MINUS} ${-S}` : `+ ${S}`;
+  const ok = D * Q + S === N;
+  $('sumLine').innerHTML =
+    `${N} = <span class="disc">(multiple of ${d})</span> + (${kept})<br>` +
+    `${N} = <span class="disc">${d} × ${Q}</span> ${Sstr}` + (ok ? '' : ' (error)') + `<br>` +
+    `<span style="font-size:18px;color:var(--muted)">So ${N} and ${fmt(S)} leave the same remainder when divided by ${d}.</span>`;
+}
+
+function sync(){ $('numIn').value = digits.join(''); render(); }
+
+$('numIn').addEventListener('input', () => {
+  const s = $('numIn').value.replace(/\D/g, '').slice(0, 15);
+  $('numIn').value = s;
+  if (s.length){ digits = s.split('').map(Number); render(); }
+});
+$('rand').onclick = () => {
+  const len = 3 + Math.floor(Math.random() * 6);
+  digits = Array.from({length: len}, (_, j) => j === 0 ? 1 + Math.floor(Math.random() * 9) : Math.floor(Math.random() * 10));
+  sync();
+};
+document.querySelectorAll('#seg button').forEach(b => b.onclick = () => {
+  d = +b.dataset.d;
+  document.querySelectorAll('#seg button').forEach(x => x.classList.toggle('active', x === b));
+  render();
+});
+['showPlace', 'showWhy'].forEach(id => $(id).addEventListener('change', render));
+
+render();
+</script>
+</body>
+</html>

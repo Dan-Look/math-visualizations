@@ -22,12 +22,22 @@
   .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 0 4px}
   .panel h2:first-child{margin-top:2px}
   select{width:100%;font-size:16px;padding:8px;border-radius:8px;border:1px solid #cbd5e1;background:#fff}
-  .seqf{font-size:17px;margin:4px 0 2px}
+  fieldset{border:0;margin:0;padding:0;min-width:0}
+  fieldset:disabled{opacity:.4}
+  .custom{margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#f8fafc}
+  .frow{display:flex;align-items:center;gap:6px;margin-bottom:6px;white-space:nowrap}
+  .frow input[type=text]{flex:1;min-width:0;font-size:16px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:8px;
+                         font-family:ui-monospace,Menlo,Consolas,monospace}
+  .frow input[type=number]{width:80px}
+  .err{color:var(--bad);font-size:14px;margin-top:4px}
+  .warn{color:#b45309;font-size:14px;margin-top:4px}
+  .help{font-size:13px;color:var(--muted);margin-top:6px}
   .ctl{margin:6px 0}
   .ctl .row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
   .ctl .name{font-weight:600;display:flex;align-items:center;gap:8px}
-  .swc{width:18px;height:18px;margin:0;cursor:pointer}
   label.name{cursor:pointer}
+  .swc{width:18px;height:18px;margin:0;cursor:pointer}
+  .spacer{width:18px;display:inline-block}
   input[type=number]{width:100px;font-size:16px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;
                      text-align:right;font-variant-numeric:tabular-nums}
   input[type=range]{width:100%;accent-color:var(--ink)}
@@ -45,6 +55,8 @@
   .readout{font-variant-numeric:tabular-nums;font-size:15.5px;margin-top:8px;color:#334155}
   .note{font-size:13px;color:var(--muted);margin-top:10px}
   @media (max-width:980px){.wrap{flex-direction:column}.panel{flex-basis:auto;width:100%}}
+
+  .seqf{font-size:17px;margin:4px 0 2px}
 </style>
 </head>
 <body>
@@ -60,129 +72,179 @@
   <aside class="panel">
     <h2>Function</h2>
     <select id="fsel"></select>
-    <h2>Sequence</h2>
-    <select id="ssel"></select>
-    <div class="seqf" id="seqFormula"></div>
-
-    <h2>Terms</h2>
-    <div class="ctl">
-      <div class="row"><label class="name"><input type="checkbox" class="swc" id="tTerms" style="accent-color:var(--acc)">Terms shown</label>
-        <input type="number" id="nNum" step="1" min="1" max="60"></div>
-      <input type="range" id="nRng" min="1" max="60" step="1">
-    </div>
-    <div class="btns">
-      <button id="stepBtn">Step</button>
-      <button id="playBtn">Play</button>
-      <button id="rewBtn">Reset</button>
+    <div class="custom" id="customBox" hidden>
+      <div class="frow"><span>f(x) =</span><input type="text" id="fExpr" spellcheck="false" autocomplete="off"></div>
+      <div class="frow"><span>x from</span><input type="number" id="cx0" step="any"><span>to</span><input type="number" id="cx1" step="any"></div>
+      <button id="fGo">Graph it</button>
+      <div class="err" id="fErr"></div>
+      <div class="help">Use x, + − * / ^, sqrt, sin, cos, tan, exp, ln, abs, pi.<br>
+        Piecewise: if(x &lt;= 0, x/2, x/2 + 1)</div>
     </div>
 
-    <h2>Neighborhoods</h2>
-    <div class="ctl">
-      <div class="row"><label class="name"><input type="checkbox" class="swc" id="tL" style="accent-color:#0f172a">Proposed limit L</label>
-        <input type="number" id="Lnum" step="any"></div>
-      <input type="range" id="Lrng">
-    </div>
-    <div class="ctl">
-      <div class="row"><label class="name"><input type="checkbox" class="swc" id="tEps" style="accent-color:var(--eps)">ε</label>
-        <input type="number" id="epsNum" step="any" min="0"></div>
-      <input type="range" id="epsRng">
-    </div>
-    <div class="ctl">
-      <div class="row"><label class="name"><input type="checkbox" class="swc" id="tDel" style="accent-color:var(--del)">δ</label>
-        <input type="number" id="delNum" step="any" min="0"></div>
-      <input type="range" id="delRng">
-    </div>
-    <div class="btns"><button id="bestBtn">Set δ to largest (numerical)</button></div>
+    <fieldset id="ctrls" disabled>
+      <h2>Point</h2>
+      <div class="ctl">
+        <div class="row"><span class="name"><span class="spacer"></span>c</span>
+          <input type="number" id="cNum" step="any"></div>
+        <input type="range" id="cRng">
+      </div>
 
-    <h2>Show</h2>
-    <label class="tog"><input type="checkbox" id="tGraph"> Graph of f</label>
-    <label class="tog"><input type="checkbox" id="tImg"> <span>Images f(x<sub>n</sub>)</span></label>
-    <label class="tog"><input type="checkbox" id="tArcs"> Hops between terms</label>
-    <label class="tog"><input type="checkbox" id="tLabels"> <span>Term labels x<sub>n</sub></span></label>
-    <label class="tog"><input type="checkbox" id="tGuide"> Guide line for the newest term</label>
+      <h2>Sequence</h2>
+      <select id="ssel"></select>
+      <div class="custom" id="seqBox" hidden>
+        <div class="frow"><span>x<sub>n</sub> =</span><input type="text" id="sExpr" spellcheck="false" autocomplete="off"></div>
+        <button id="sGo">Use sequence</button>
+        <div class="err" id="sErr"></div>
+        <div class="help">Use n and c, for example c + (-1)^n/n or c + sin(n)/n.</div>
+      </div>
+      <div class="seqf" id="seqFormula"></div>
+      <div class="warn" id="seqWarn"></div>
 
-    <div class="status" id="status"></div>
-    <div class="note">Checks use finitely many sample points and the first 100,000 terms. They are numerical evidence, not a proof.</div>
+      <h2>Terms</h2>
+      <div class="ctl">
+        <div class="row"><label class="name"><input type="checkbox" class="swc" id="tTerms" style="accent-color:var(--acc)">Terms shown</label>
+          <input type="number" id="nNum" step="1" min="1" max="60"></div>
+        <input type="range" id="nRng" min="1" max="60" step="1">
+      </div>
+      <div class="btns">
+        <button id="stepBtn">Step</button>
+        <button id="playBtn">Play</button>
+        <button id="rewBtn">Reset</button>
+      </div>
+
+      <h2>Neighborhoods</h2>
+      <div class="ctl">
+        <div class="row"><label class="name"><input type="checkbox" class="swc" id="tL" style="accent-color:#0f172a">Proposed limit L</label>
+          <input type="number" id="Lnum" step="any"></div>
+        <input type="range" id="Lrng">
+      </div>
+      <div class="ctl">
+        <div class="row"><label class="name"><input type="checkbox" class="swc" id="tEps" style="accent-color:var(--eps)">ε</label>
+          <input type="number" id="epsNum" step="any" min="0"></div>
+        <input type="range" id="epsRng">
+      </div>
+      <div class="ctl">
+        <div class="row"><label class="name"><input type="checkbox" class="swc" id="tDel" style="accent-color:var(--del)">δ</label>
+          <input type="number" id="delNum" step="any" min="0"></div>
+        <input type="range" id="delRng">
+      </div>
+      <div class="btns"><button id="bestBtn">Set δ to largest (numerical)</button></div>
+
+      <h2>Show</h2>
+      <label class="tog"><input type="checkbox" id="tImg"> <span>Images f(x<sub>n</sub>)</span></label>
+      <label class="tog"><input type="checkbox" id="tArcs"> Hops between terms</label>
+      <label class="tog"><input type="checkbox" id="tLabels"> <span>Term labels x<sub>n</sub></span></label>
+      <label class="tog"><input type="checkbox" id="tGuide"> Guide line for the newest term</label>
+
+      <div class="status" id="status"></div>
+      <div class="note">Checks use finitely many sample points and the first 100,000 terms. They are numerical evidence, not a proof.</div>
+    </fieldset>
   </aside>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
+const FONT = "system-ui,-apple-system,Segoe UI,Roboto,sans-serif";
 
-/* ---------- Function library (same functions as the Epsilon–Delta Explorer) ----------
-   c: the point x approaches. k: scale for the generic sequences so early terms stay in view. */
-const FUNCS = [
-  {label:"f(x) = x²,  c = 1", f:x=>x*x, c:1, L:1,
-   win:{x0:-0.5,x1:2.5,y0:-1,y1:4}, eps:[0.75,2], del:[0.25,1.5], holes:[], pts:[], breaks:[], n:2000, k:1},
-  {label:"f(x) = 2x + 1,  c = 1", f:x=>2*x+1, c:1, L:3,
-   win:{x0:-1,x1:3,y0:-1,y1:7}, eps:[1,3], del:[0.4,2], holes:[], pts:[], breaks:[], n:2000, k:1},
-  {label:"f(x) = √x,  c = 4", f:x=>x>=0?Math.sqrt(x):NaN, c:4, L:2,
-   win:{x0:-1,x1:9,y0:-1,y1:4}, eps:[0.5,2], del:[1.5,4], holes:[], pts:[], breaks:[], n:3000, k:2},
-  {label:"f(x) = x² for x ≠ 1, f(1) = 3,  c = 1", f:x=>x===1?3:x*x, c:1, L:1,
-   win:{x0:-0.5,x1:2.5,y0:-1,y1:4}, eps:[0.75,2], del:[0.25,1.5], holes:[[1,1]], pts:[[1,3]], breaks:[], n:2000, k:1},
-  {label:"f(x) = sin(x)/x,  c = 0", f:x=>x===0?NaN:Math.sin(x)/x, c:0, L:1,
-   win:{x0:-8,x1:8,y0:-0.5,y1:1.5}, eps:[0.25,1], del:[1,6], holes:[[0,1]], pts:[], breaks:[], n:3000, k:2},
-  {label:"f(x) = x·sin(1/x),  c = 0", f:x=>x===0?NaN:x*Math.sin(1/x), c:0, L:0,
-   win:{x0:-0.5,x1:0.5,y0:-0.5,y1:0.5}, eps:[0.2,0.5], del:[0.15,0.5], holes:[[0,0]], pts:[], breaks:[], n:40000, k:0.4},
-  {label:"f(x) = x/2 (x ≤ 0), x/2 + 1 (x > 0),  c = 0", f:x=>x>0?x/2+1:x/2, c:0, L:null, Ldef:0.5,
-   win:{x0:-2,x1:2,y0:-1.5,y1:2.5}, eps:[0.75,2], del:[0.4,2], holes:[[0,1]], pts:[[0,0]], breaks:[0], n:2000, k:1},
-  {label:"f(x) = sin(1/x),  c = 0", f:x=>x===0?NaN:Math.sin(1/x), c:0, L:null, Ldef:0,
-   win:{x0:-0.5,x1:0.5,y0:-1.5,y1:1.5}, eps:[0.5,1.5], del:[0.1,0.5], holes:[], pts:[], breaks:[], n:60000, k:0.4},
-];
-
-/* ---------- Sequences x_n = c ± h_n ---------- */
-const kTxt = k => k === 1 ? "" : String(k);
-const SEQS = [
-  {h:(n,k)=> k*Math.pow(-1,n)/n, sign:+1, scaled:true,
-   txt:k=>`${kTxt(k)}(−1)ⁿ/n`, html:k=>`${kTxt(k)}(−1)<sup>n</sup>/n`},
-  {h:(n,k)=> k/n, sign:+1, scaled:true, txt:k=>`${k}/n`, html:k=>`${k}/n`},
-  {h:(n,k)=> -k/n, sign:-1, scaled:true, txt:k=>`${k}/n`, html:k=>`${k}/n`},
-  {h:(n,k)=> k/(n*n), sign:+1, scaled:true, txt:k=>`${k}/n²`, html:k=>`${k}/n<sup>2</sup>`},
-  {h:(n,k)=> k*Math.pow(-1,n)/Math.sqrt(n), sign:+1, scaled:true,
-   txt:k=>`${kTxt(k)}(−1)ⁿ/√n`, html:k=>`${kTxt(k)}(−1)<sup>n</sup>/√n`},
-  {h:n=> 1/(2*Math.PI*n + Math.PI/2), sign:+1, scaled:false, txt:()=>"1/(2πn + π/2)", html:()=>"1/(2πn + π/2)"},
-  {h:n=> 1/(Math.PI*n), sign:+1, scaled:false, txt:()=>"1/(πn)", html:()=>"1/(πn)"},
-  {h:n=> -1/(2*Math.PI*n + Math.PI/2), sign:-1, scaled:false, txt:()=>"1/(2πn + π/2)", html:()=>"1/(2πn + π/2)"},
-];
-function seqText(F, s, html){
-  const body = (html ? s.html : s.txt)(F.k);
-  if (F.c === 0) return (s.sign < 0 ? "−" : "") + body;
-  return String(F.c) + (s.sign < 0 ? " − " : " + ") + body;
-}
-
-const NCHECK = 100000, NMAX = 60;
-const S = {F:null, seq:SEQS[0], L:0, eps:0, del:0, nShown:6, xs:null, fs:null, timer:null};
-
-/* ---------- Numerical helpers ---------- */
-function sampleDistances(W){
-  const d = [], NU = 6000, NL = 1600;
-  for (let i=1;i<=NU;i++) d.push(W*i/NU);
-  for (let j=0;j<NL;j++) d.push(W*Math.pow(10, -8 + 8*j/NL));
-  d.sort((p,q)=>p-q);
-  return d;
-}
-// Closest sampled x (to c) with |f(x) - L| >= eps, or null.
-function firstFail(F, L, eps){
-  for (const d of F.d){
-    for (const x of [F.c-d, F.c+d]){
-      const v = F.f(x);
-      if (!isFinite(v)) continue;
-      if (Math.abs(v-L) >= eps) return {d, x, v};
+/* ---------- Expression parser ----------
+   Turns text like "x^2 sin(1/x)" into a function, without running the text as code.
+   Supports + - * / ^, implicit multiplication (2x, x sin(x)), comparisons, and if(cond, a, b). */
+const FUNS = {sin:Math.sin, cos:Math.cos, tan:Math.tan, asin:Math.asin, acos:Math.acos, atan:Math.atan,
+  sinh:Math.sinh, cosh:Math.cosh, tanh:Math.tanh, exp:Math.exp, ln:Math.log, log:Math.log, log10:Math.log10,
+  sqrt:Math.sqrt, abs:Math.abs, floor:Math.floor, ceil:Math.ceil, sign:Math.sign, min:Math.min, max:Math.max, if:null};
+const CONSTS = {pi:Math.PI, e:Math.E};
+function compile(src, vars){
+  const s = String(src).replace(/\*\*/g,"^").replace(/π/g," pi ").replace(/[−–]/g,"-").replace(/[·×]/g,"*")
+    .replace(/≤/g,"<=").replace(/≥/g,">=").replace(/√/g," sqrt ").replace(/²/g,"^2").replace(/ⁿ/g,"^n");
+  const T = []; let i = 0;
+  while (i < s.length){
+    const ch = s[i];
+    if (/\s/.test(ch)){ i++; continue; }
+    if (/[0-9.]/.test(ch)){
+      let j = i; while (j < s.length && /[0-9.]/.test(s[j])) j++;
+      const v = Number(s.slice(i,j)); if (!isFinite(v)) throw new Error(`"${s.slice(i,j)}" is not a number`);
+      T.push({k:"num", v}); i = j; continue;
+    }
+    if (/[A-Za-z_]/.test(ch)){
+      let j = i; while (j < s.length && /[A-Za-z_0-9]/.test(s[j])) j++;
+      T.push({k:"id", v:s.slice(i,j)}); i = j; continue;
+    }
+    const two = s.slice(i,i+2);
+    if (["<=",">=","==","!="].includes(two)){ T.push({k:two}); i += 2; continue; }
+    if ("+-*/^(),<>".includes(ch)){ T.push({k:ch}); i++; continue; }
+    throw new Error(`Unexpected character "${ch}"`);
+  }
+  if (!T.length) throw new Error("Enter an expression");
+  let p = 0;
+  const peek = () => T[p];
+  const eat = k => { if (T[p] && T[p].k === k){ p++; return true; } return false; };
+  const need = k => { if (!eat(k)) throw new Error(`Expected "${k}"`); };
+  const OPS = {"<":(a,b)=>+(a<b), ">":(a,b)=>+(a>b), "<=":(a,b)=>+(a<=b), ">=":(a,b)=>+(a>=b), "==":(a,b)=>+(a===b), "!=":(a,b)=>+(a!==b)};
+  function cmp(){
+    const a = sum(), t = peek();
+    if (t && OPS[t.k]){ p++; const b = sum(), op = OPS[t.k]; return e => op(a(e), b(e)); }
+    return a;
+  }
+  function sum(){
+    let a = prod();
+    for (;;){
+      if (eat("+")){ const l = a, r = prod(); a = e => l(e) + r(e); }
+      else if (eat("-")){ const l = a, r = prod(); a = e => l(e) - r(e); }
+      else return a;
     }
   }
-  return null;
+  const startsAtom = t => t && (t.k === "num" || t.k === "id" || t.k === "(");
+  function prod(){
+    let a = unary();
+    for (;;){
+      if (eat("*")){ const l = a, r = unary(); a = e => l(e) * r(e); }
+      else if (eat("/")){ const l = a, r = unary(); a = e => l(e) / r(e); }
+      else if (startsAtom(peek())){ const l = a, r = power(); a = e => l(e) * r(e); }   // implicit: 2x, x sin(x)
+      else return a;
+    }
+  }
+  function unary(){
+    if (eat("-")){ const r = unary(); return e => -r(e); }
+    if (eat("+")) return unary();
+    return power();
+  }
+  function power(){
+    const b = atom();
+    if (eat("^")){ const ex = unary(); return e => Math.pow(b(e), ex(e)); }
+    return b;
+  }
+  function atom(){
+    const t = T[p++];
+    if (!t) throw new Error("The expression ends too soon");
+    if (t.k === "num"){ const v = t.v; return () => v; }
+    if (t.k === "("){ const a = cmp(); need(")"); return a; }
+    if (t.k === "id"){
+      const name = t.v;
+      if (vars.includes(name)) return e => e[name];
+      if (name in CONSTS){ const v = CONSTS[name]; return () => v; }
+      if (name in FUNS){
+        if (eat("(")){
+          const args = [cmp()]; while (eat(",")) args.push(cmp()); need(")");
+          if (name === "if"){
+            if (args.length !== 3) throw new Error("Use if(condition, value, otherwise value)");
+            const [c, a, b] = args; return e => c(e) ? a(e) : b(e);
+          }
+          const fn = FUNS[name];
+          if (args.length === 1){ const a = args[0]; return e => fn(a(e)); }
+          return e => fn(...args.map(g => g(e)));
+        }
+        if (name === "if") throw new Error("Use if(condition, value, otherwise value)");
+        const fn = FUNS[name], a = power(); return e => fn(a(e));          // sqrt n, sin x
+      }
+      throw new Error(`Unknown name "${name}". Allowed variables: ${vars.join(", ")}. Put a space or * between names, as in x sin(x).`);
+    }
+    throw new Error(`Unexpected "${t.k}"`);
+  }
+  const f = cmp();
+  if (p < T.length) throw new Error(`Unexpected "${T[p].v !== undefined ? T[p].v : T[p].k}"`);
+  return f;
 }
-function buildSequence(){
-  const F = S.F, s = S.seq, k = s.scaled ? F.k : 1;
-  S.xs = new Float64Array(NCHECK+1); S.fs = new Float64Array(NCHECK+1);
-  for (let n=1;n<=NCHECK;n++){ const x = F.c + s.h(n,k); S.xs[n] = x; S.fs[n] = F.f(x); }
-}
-// Smallest N with test(n) true for all N ≤ n ≤ NCHECK; null if it keeps failing near the end.
-function findN(test){
-  let last = 0;
-  for (let n=1;n<=NCHECK;n++) if (!test(n)) last = n;
-  return last > NCHECK - 1000 ? null : last + 1;
-}
+function makeF(src){ const g = compile(src, ["x"]); return x => g({x}); }
 
 /* ---------- Formatting ---------- */
 const minus = s => s.replace(/-/g, "−");
@@ -204,9 +266,115 @@ function fmtTick(v, step){
   if (Number(s) === 0) s = (0).toFixed(dec);
   return minus(s);
 }
+const niceRound = v => Number(v.toPrecision(1));
 const cssCache = {};
 function css(v){ return cssCache[v] || (cssCache[v] = getComputedStyle(document.documentElement).getPropertyValue(v).trim()); }
-const FONT = "system-ui,-apple-system,Segoe UI,Roboto,sans-serif";
+
+/* ---------- Numerical helpers ---------- */
+// Distances from c at which f is sampled: uniform plus log-spaced (to probe very close to c).
+function sampleDistances(W){
+  const d = [], NU = 6000, NL = 1600;
+  for (let i=1;i<=NU;i++) d.push(W*i/NU);
+  for (let j=0;j<NL;j++) d.push(W*Math.pow(10, -8 + 8*j/NL));
+  d.sort((p,q)=>p-q);
+  return d;
+}
+// Closest sampled x (to c) with |f(x) - L| >= eps, or null.
+function firstFail(F, c, L, eps){
+  for (const d of F.d){
+    for (const x of [c-d, c+d]){
+      const v = F.f(x);
+      if (!isFinite(v)) continue;                 // outside the domain
+      if (Math.abs(v-L) >= eps) return {d, x, v};
+    }
+  }
+  return null;
+}
+// Sampled x in the δ-window where |f(x) - L| is largest.
+function worstIn(F, c, L, del){
+  let best = null;
+  for (const d of F.d){
+    if (d >= del) break;
+    for (const x of [c-d, c+d]){
+      const v = F.f(x);
+      if (!isFinite(v)) continue;
+      const e = Math.abs(v-L);
+      if (!best || e > best.e) best = {x, v, e};
+    }
+  }
+  return best;
+}
+// One-sided values just left and right of c (null if they are not settling down).
+function sideValues(F, c){
+  const w = F.win, h = (w.x1-w.x0)*1e-6, tol = (w.y1-w.y0)*2e-3;
+  const side = s => { const a = F.f(c+s*h), b = F.f(c+2*s*h);
+    return isFinite(a) && isFinite(b) && Math.abs(a-b) < tol ? a : null; };
+  return {left:side(-1), right:side(1), tol};
+}
+// Open and filled circles at x = c, worked out from the function itself.
+function marksAt(F, c){
+  const {left, right, tol} = sideValues(F, c), fc = F.f(c), opens = [];
+  const near = (a,b) => Math.abs(a-b) < tol;
+  [left, right].forEach(v => {
+    if (v === null) return;
+    if (isFinite(fc) && near(v, fc)) return;
+    if (opens.some(o => near(o, v))) return;
+    opens.push(v);
+  });
+  return {opens, filled: (isFinite(fc) && opens.length) ? fc : null};
+}
+// A starting value for L: the one-sided values near c, if they settle down.
+function guessL(F, c){
+  const {left, right} = sideValues(F, c);
+  let v;
+  if (left !== null && right !== null) v = (left+right)/2;
+  else if (left !== null) v = left; else if (right !== null) v = right;
+  else { const fc = F.f(c); v = isFinite(fc) ? fc : (F.win.y0+F.win.y1)/2; }
+  return Number(v.toFixed(4));
+}
+// y-window for a custom function, from the middle 94% of its sampled values.
+function autoY(f, x0, x1){
+  const vals = [];
+  for (let i=0;i<=2000;i++){ const v = f(x0+(x1-x0)*i/2000); if (isFinite(v)) vals.push(v); }
+  if (vals.length < 10) throw new Error("f is undefined on most of this interval");
+  vals.sort((a,b)=>a-b);
+  let lo = vals[Math.floor(vals.length*0.03)], hi = vals[Math.floor(vals.length*0.97)];
+  if (!(hi - lo > 1e-9)){ lo -= 1; hi += 1; }
+  const pad = (hi-lo)*0.12; lo -= pad; hi += pad;
+  const st = niceStep(hi-lo, 6);
+  return [Math.floor(lo/st)*st, Math.ceil(hi/st)*st];
+}
+// Build the full function object for a custom function.
+function customFunction(expr, x0, x1, cPrev){
+  if (!(x1 > x0)) throw new Error("The x-range needs “from” smaller than “to”");
+  const f = makeF(expr);
+  const [y0, y1] = autoY(f, x0, x1);
+  const c = (cPrev !== null && cPrev > x0 && cPrev < x1) ? cPrev : Number(((x0+x1)/2).toPrecision(3));
+  const F = {name:"custom", expr, f, c, win:{x0,x1,y0,y1}, breaks:[], n:20000, k:Math.min(1, niceRound((x1-x0)/5)),
+             eps:[niceRound((y1-y0)/8), (y1-y0)/2], del:[niceRound((x1-x0)/12), (x1-x0)/2]};
+  F.L = guessL(F, c);
+  return F;
+}
+
+/* ---------- Function library ----------
+   Written in the same notation you can type into the custom box. */
+const PRESETS = [
+  {expr:"x^2", show:"x²", c:1, L:1, win:{x0:-0.5,x1:2.5,y0:-1,y1:4}, eps:[0.75,2], del:[0.25,1.5], breaks:[], n:2000, k:1},
+  {expr:"2x + 1", show:"2x + 1", c:1, L:3, win:{x0:-1,x1:3,y0:-1,y1:7}, eps:[1,3], del:[0.4,2], breaks:[], n:2000, k:1},
+  {expr:"sqrt(x)", show:"√x", c:4, L:2, win:{x0:-1,x1:9,y0:-1,y1:4}, eps:[0.5,2], del:[1.5,4], breaks:[], n:3000, k:2},
+  {expr:"if(x == 1, 3, x^2)", show:"x² for x ≠ 1, f(1) = 3", c:1, L:1, win:{x0:-0.5,x1:2.5,y0:-1,y1:4}, eps:[0.75,2], del:[0.25,1.5], breaks:[], n:2000, k:1},
+  {expr:"sin(x)/x", show:"sin(x)/x", c:0, L:1, win:{x0:-8,x1:8,y0:-0.5,y1:1.5}, eps:[0.25,1], del:[1,6], breaks:[], n:3000, k:2},
+  {expr:"x sin(1/x)", show:"x·sin(1/x)", c:0, L:0, win:{x0:-0.5,x1:0.5,y0:-0.5,y1:0.5}, eps:[0.2,0.5], del:[0.15,0.5], breaks:[], n:40000, k:0.4},
+  {expr:"if(x <= 0, x/2, x/2 + 1)", show:"x/2 (x ≤ 0), x/2 + 1 (x > 0)", c:0, L:0.5, win:{x0:-2,x1:2,y0:-1.5,y1:2.5}, eps:[0.75,2], del:[0.4,2], breaks:[0], n:2000, k:1},
+  {expr:"sin(1/x)", show:"sin(1/x)", c:0, L:0, win:{x0:-0.5,x1:0.5,y0:-1.5,y1:1.5}, eps:[0.5,1.5], del:[0.1,0.5], breaks:[], n:60000, k:0.4},
+];
+PRESETS.forEach(P => { P.f = makeF(P.expr); });
+
+function fillFunctionMenu(sel){
+  sel.innerHTML = `<option value="" selected disabled>Choose a function…</option>`;
+  PRESETS.forEach((P,i) => { const o = document.createElement("option"); o.value = i; o.textContent = "f(x) = " + P.show; sel.appendChild(o); });
+  const o = document.createElement("option"); o.value = "custom"; o.textContent = "Custom function…"; sel.appendChild(o);
+}
 
 /* ---------- Drawing helpers ---------- */
 function dashed(ctx,x0,y0,x1,y1,color,w=1.5,dash=[6,5]){
@@ -218,43 +386,17 @@ function circle(ctx,x,y,r,fill,stroke,lw=2){
   if (fill){ ctx.fillStyle=fill; ctx.fill(); }
   if (stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke(); }
 }
-// Draw "x" with subscript n, e.g. sub("x", "12")
 function subLabel(ctx, base, sub, x, y, size, color, align="center"){
   ctx.fillStyle = color; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
   const fb = `600 ${size}px ${FONT}`, fs = `600 ${Math.round(size*0.72)}px ${FONT}`;
   ctx.font = fb; const wb = ctx.measureText(base).width;
   ctx.font = fs; const ws = ctx.measureText(sub).width;
-  let x0 = align === "center" ? x-(wb+ws)/2 : align === "right" ? x-wb-ws : x;
+  const x0 = align === "center" ? x-(wb+ws)/2 : align === "right" ? x-wb-ws : x;
   ctx.font = fb; ctx.fillText(base, x0, y);
   ctx.font = fs; ctx.fillText(sub, x0+wb, y + size*0.25);
-  return wb + ws;
 }
-
-/* ---------- Main drawing ----------
-   One canvas: graph of f on top, number line for x_n underneath, sharing the same x-scale. */
-const cv = $("cv");
-function draw(){
-  const F = S.F, w = F.win;
-  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
-  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
-  const ctx = cv.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-
-  const PL = 62, PR = W-80, PT = 18, PB = H - 190;          // graph box
-  const LY = H - 62;                                         // number-line y
-  const X = x => PL + (x-w.x0)/(w.x1-w.x0)*(PR-PL);
-  const Y = y => PB - (y-w.y0)/(w.y1-w.y0)*(PB-PT);
-
-  const fail = firstFail(F, S.L, S.eps);
-  const works = !fail || fail.d >= S.del;
-  const N = findN(n => Math.abs(S.xs[n]-F.c) < S.del);
-  const nS = S.nShown;
-  const inDel = n => Math.abs(S.xs[n]-F.c) < S.del;
-  const inEps = n => Math.abs(S.fs[n]-S.L) < S.eps;
-  const inX = x => x >= w.x0 && x <= w.x1;
-  const showL = $("tL").checked, showT = $("tTerms").checked, showG = $("tGraph").checked, showI = $("tImg").checked, showE = $("tEps").checked, showD = $("tDel").checked;
-  const NEUTRAL = "#334155";
-
-  /* --- graph grid --- */
+// Grid, tick labels and axes for a graph box.
+function drawGrid(ctx, w, X, Y, PL, PR, PT, PB){
   const sx = niceStep(w.x1-w.x0, 8), sy = niceStep(w.y1-w.y0, 7);
   ctx.font = `15px ${FONT}`; ctx.fillStyle = "#475569"; ctx.strokeStyle = "#eef1f6"; ctx.lineWidth = 1;
   ctx.textAlign = "center"; ctx.textBaseline = "top";
@@ -271,41 +413,194 @@ function draw(){
   if (w.y0<0 && w.y1>0){ ctx.beginPath(); ctx.moveTo(PL,Y(0)); ctx.lineTo(PR,Y(0)); ctx.stroke(); }
   if (w.x0<0 && w.x1>0){ ctx.beginPath(); ctx.moveTo(X(0),PT); ctx.lineTo(X(0),PB); ctx.stroke(); }
   ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1; ctx.strokeRect(PL,PT,PR-PL,PB-PT);
-
-  /* --- δ-window as a column through the graph and down to the number line --- */
-  const xl = X(F.c-S.del), xr = X(F.c+S.del), xc = X(F.c);
-  ctx.fillStyle = showD ? "rgba(29,78,216,0.08)" : "rgba(0,0,0,0)";
-  const cl = Math.max(xl,PL), cw = Math.min(xr,PR)-cl, gap = PB+30;   // skip the tick-label row
-  ctx.fillRect(cl, PT, cw, PB-PT); ctx.fillRect(cl, gap, cw, LY+10-gap);
-
-  /* --- graph contents (clipped) --- */
-  ctx.save(); ctx.beginPath(); ctx.rect(PL,PT,PR-PL,PB-PT); ctx.clip();
-  if (showE){
-    ctx.fillStyle = "rgba(194,65,12,0.12)";
-    ctx.fillRect(PL, Y(S.L+S.eps), PR-PL, Y(S.L-S.eps)-Y(S.L+S.eps));
+  return sx;
+}
+// Sample the graph of f into line segments; segmentStyle(x0,y0,x1,y1) returns which path to use.
+function graphSegments(F, c, X, Y, paths, pick){
+  const w = F.win, n = F.n, big = 1.5*(w.y1-w.y0);
+  let px = null, py = null;
+  for (let i=0;i<=n;i++){
+    const x = w.x0 + (w.x1-w.x0)*i/n;
+    const y = Math.abs(x-c) < 1e-12 ? NaN : F.f(x);
+    if (!isFinite(y)){ px = null; continue; }
+    const brk = px !== null && ((px < c && x > c) || F.breaks.some(b => px < b && x >= b) || Math.abs(y-py) > big);
+    if (px !== null && !brk){
+      const path = pick(px, py, x, y);
+      path.moveTo(X(px),Y(py)); path.lineTo(X(x),Y(y));
+    }
+    px = x; py = y;
   }
+}
+// The "c" slider/number pair, limited to the function's x-window.
+function setRange(id, min, max, step, val){ const r=$(id); r.min=min; r.max=max; r.step=step; r.value=val; }
+function bindPair(rngId, numId, get, set, ok){
+  const r = $(rngId), num = $(numId);
+  r.addEventListener("input", () => { set(+r.value); num.value = fmtIn(get()); });
+  num.addEventListener("input", () => { const v = parseFloat(num.value); if (isFinite(v) && ok(v)){ r.value = v; set(v); } });
+  num.addEventListener("change", () => { num.value = fmtIn(get()); });
+}
+// Show/hide the custom-function box and handle "Graph it".
+function setupCustomFunction(onLoad, getState){
+  const sel = $("fsel"), box = $("customBox");
+  sel.addEventListener("change", () => {
+    if (sel.value === "custom"){
+      box.hidden = false;
+      const st = getState();
+      if (!$("fExpr").value){
+        const P = st.F && st.F.name !== "custom" ? st.F : null;
+        $("fExpr").value = P ? P.expr : "x^2";
+        $("cx0").value = P ? P.win.x0 : -3; $("cx1").value = P ? P.win.x1 : 3;
+      }
+      $("fExpr").focus();
+    } else {
+      box.hidden = true;
+      const P = PRESETS[+sel.value];
+      onLoad(Object.assign({name:"preset"}, P, {d:null}));
+    }
+  });
+  const go = () => {
+    try {
+      const st = getState();
+      const F = customFunction($("fExpr").value, parseFloat($("cx0").value), parseFloat($("cx1").value), st.F ? st.c : null);
+      $("fErr").textContent = "";
+      onLoad(F);
+    } catch (e){ $("fErr").textContent = e.message; }
+  };
+  $("fGo").addEventListener("click", go);
+  $("fExpr").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+}
+
+
+/* ================= Sequential Criterion Explorer ================= */
+/* Preset sequences. K is a coefficient (blank when 1), D a numerator; both use the function's scale k
+   so the first terms stay inside the window. */
+const SEQS = [
+  {expr:"c + K(-1)^n/n",        pretty:"c + K(−1)ⁿ/n"},
+  {expr:"c + D/n",              pretty:"c + D/n"},
+  {expr:"c - D/n",              pretty:"c − D/n"},
+  {expr:"c + D/n^2",            pretty:"c + D/n²"},
+  {expr:"c + K(-1)^n/sqrt(n)",  pretty:"c + K(−1)ⁿ/√n"},
+  {expr:"c + 1/(2pi n + pi/2)", pretty:"c + 1/(2πn + π/2)"},
+  {expr:"c + 1/(pi n)",         pretty:"c + 1/(πn)"},
+  {expr:"c - 1/(2pi n + pi/2)", pretty:"c − 1/(2πn + π/2)"},
+];
+const fillK = (t, k) => t.replace(/K/g, k === 1 ? "" : String(k)).replace(/D/g, String(k));
+
+const NCHECK = 100000, NMAX = 60;
+const S = {F:null, c:0, L:0, eps:0, del:0, nShown:6, seqSel:"0", seqExpr:"", seqPretty:"", seqG:null,
+           xs:null, fs:null, timer:null};
+const cv = $("cv");
+
+function loadFunction(F){
+  if (!F.d) F.d = sampleDistances(F.del[1]);
+  stopPlay();
+  S.F = F; S.c = F.c; S.L = F.L; S.eps = F.eps[0]; S.del = F.del[0]; S.nShown = 6;
+  $("ctrls").disabled = false;
+  document.querySelectorAll("#ctrls input[type=checkbox]").forEach(b => b.checked = false);   // start fresh
+  fillSeqMenu();
+  if (S.seqSel !== "custom") useSequence(fillK(SEQS[+S.seqSel].expr, F.k), fillK(SEQS[+S.seqSel].pretty, F.k));
+  else buildSequence();
+  syncControls(); draw();
+}
+function fillSeqMenu(){
+  const sel = $("ssel"), k = S.F.k;
+  sel.innerHTML = "";
+  SEQS.forEach((q,i) => { const o = document.createElement("option"); o.value = i; o.textContent = fillK(q.pretty, k); sel.appendChild(o); });
+  const o = document.createElement("option"); o.value = "custom"; o.textContent = "Custom sequence…"; sel.appendChild(o);
+  sel.value = S.seqSel;
+}
+// Compile a sequence expression in n and c; throws on a typing error.
+function useSequence(expr, pretty){
+  const g = compile(expr, ["n","c"]);
+  S.seqG = g; S.seqExpr = expr; S.seqPretty = pretty;
+  $("seqFormula").innerHTML = "x<sub>n</sub> = " + pretty;
+  buildSequence();
+}
+function buildSequence(){
+  if (!S.seqG || !S.F) return;
+  const F = S.F, c = S.c;
+  S.xs = new Float64Array(NCHECK+1); S.fs = new Float64Array(NCHECK+1);
+  let hitsC = 0, bad = 0;
+  for (let n=1;n<=NCHECK;n++){
+    const x = S.seqG({n, c}); S.xs[n] = x; S.fs[n] = F.f(x);
+    if (!isFinite(x)) bad++; else if (x === c) hitsC++;
+  }
+  const far = Math.abs(S.xs[NCHECK]-c) > (F.win.x1-F.win.x0)*1e-3;
+  const w = [];
+  if (bad) w.push(`${fmtInt(bad)} terms are undefined.`);
+  if (hitsC) w.push(`${fmtInt(hitsC)} terms equal c; the criterion needs x<sub>n</sub> ≠ c.`);
+  if (far) w.push(`This sequence may not converge to c (x<sub>100,000</sub> = ${fmt(S.xs[NCHECK])}).`);
+  $("seqWarn").innerHTML = w.join("<br>");
+}
+// Smallest N with test(n) true for all N ≤ n ≤ NCHECK; null if it keeps failing near the end.
+function findN(test){
+  let last = 0;
+  for (let n=1;n<=NCHECK;n++) if (!test(n)) last = n;
+  return last > NCHECK - 1000 ? null : last + 1;
+}
+function syncControls(){
+  const F = S.F, w = F.win;
+  setRange("cRng", w.x0, w.x1, niceStep(w.x1-w.x0,300), S.c);   $("cNum").value = fmtIn(S.c);
+  setRange("Lrng", w.y0, w.y1, niceStep(w.y1-w.y0,300), S.L);   $("Lnum").value = fmtIn(S.L);
+  const es = niceStep(F.eps[1],400), ds = niceStep(F.del[1],1000);
+  setRange("epsRng", es, F.eps[1], es, S.eps); $("epsNum").value = fmtIn(S.eps);
+  setRange("delRng", ds, F.del[1], ds, S.del); $("delNum").value = fmtIn(S.del);
+  $("nRng").value = S.nShown; $("nNum").value = S.nShown;
+}
+
+/* ---------- Drawing: graph of f on top, the sequence on a number line below (same x-scale) ---------- */
+function draw(){
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+  if (!S.F || !S.xs){
+    ctx.fillStyle = "#94a3b8"; ctx.font = `20px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("Choose a function to begin.", W/2, H/2);
+    $("status").innerHTML = ""; return;
+  }
+  const F = S.F, w = F.win, c = S.c;
+  const PL = 62, PR = W-80, PT = 18, PB = H-190, LY = H-62;
+  const X = x => PL + (x-w.x0)/(w.x1-w.x0)*(PR-PL);
+  const Y = y => PB - (y-w.y0)/(w.y1-w.y0)*(PB-PT);
+  const showL = $("tL").checked, showE = $("tEps").checked, showD = $("tDel").checked, showT = $("tTerms").checked,
+        showI = $("tImg").checked;
+  const NEUTRAL = "#334155";
+  const fail = firstFail(F, c, S.L, S.eps), works = !fail || fail.d >= S.del;
+  const N = findN(n => Math.abs(S.xs[n]-c) < S.del);
+  const nS = S.nShown;
+  const inDel = n => Math.abs(S.xs[n]-c) < S.del, inEps = n => Math.abs(S.fs[n]-S.L) < S.eps;
+  const inX = x => isFinite(x) && x >= w.x0 && x <= w.x1;
+
+  const sx = drawGrid(ctx, w, X, Y, PL, PR, PT, PB);
+
+  // δ-neighborhood: a column through the graph and down to the number line (skipping the tick-label row)
+  const xl = X(c-S.del), xr = X(c+S.del), xc = X(c);
+  if (showD){
+    const cl = Math.max(xl,PL), cw = Math.min(xr,PR)-cl, gap = PB+30;
+    ctx.fillStyle = "rgba(29,78,216,0.08)";
+    ctx.fillRect(cl, PT, cw, PB-PT); ctx.fillRect(cl, gap, cw, LY+10-gap);
+  }
+
+  ctx.save(); ctx.beginPath(); ctx.rect(PL,PT,PR-PL,PB-PT); ctx.clip();
+  const yt = Y(S.L+S.eps), yb = Y(S.L-S.eps);
+  if (showE){ ctx.fillStyle = "rgba(194,65,12,0.12)"; ctx.fillRect(PL, yt, PR-PL, yb-yt); }
   if (showE && showD){
     ctx.strokeStyle = works ? "rgba(21,128,61,0.9)" : "rgba(220,38,38,0.9)"; ctx.lineWidth = 2;
-    ctx.strokeRect(xl, Y(S.L+S.eps), xr-xl, Y(S.L-S.eps)-Y(S.L+S.eps));
+    ctx.strokeRect(xl, yt, xr-xl, yb-yt);
   }
-  if (showL || showE) dashed(ctx, PL, Y(S.L), PR, Y(S.L), "rgba(194,65,12,0.75)");
+  if (showL || showE) dashed(ctx, PL, Y(S.L), PR, Y(S.L), "rgba(194,65,12,0.8)");
+  ctx.strokeStyle = "rgba(15,23,42,0.55)"; ctx.lineWidth = 1.5;                       // vertical line at c
+  ctx.beginPath(); ctx.moveTo(xc,PT); ctx.lineTo(xc,PB); ctx.stroke();
 
-  const path = new Path2D(); let px = null;
-  for (let i=0;i<=F.n;i++){
-    const x = w.x0 + (w.x1-w.x0)*i/F.n;
-    const y = Math.abs(x-F.c) < 1e-12 ? NaN : F.f(x);
-    if (!isFinite(y)){ px = null; continue; }
-    if (px === null || F.breaks.some(b => px < b && x >= b)) path.moveTo(X(x),Y(y)); else path.lineTo(X(x),Y(y));
-    px = x;
-  }
-  if (showG){
-    ctx.lineJoin = "round"; ctx.strokeStyle = "#475569"; ctx.lineWidth = 2; ctx.stroke(path);
-    F.holes.forEach(([hx,hy]) => circle(ctx, X(hx), Y(hy), 5.5, "#fff", "#475569", 2));
-    F.pts.forEach(([qx,qy]) => circle(ctx, X(qx), Y(qy), 5.5, "#475569", null));
-  }
+  const path = new Path2D();
+  graphSegments(F, c, X, Y, null, () => path);
+  ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.strokeStyle = "#475569"; ctx.lineWidth = 2; ctx.stroke(path);
+  const mk = marksAt(F, c);
+  mk.opens.forEach(v => circle(ctx, xc, Y(v), 5.5, "#fff", "#475569", 2));
+  if (mk.filled !== null) circle(ctx, xc, Y(mk.filled), 5.5, "#475569", null);
 
-  // f(x_n): rug on the left edge and points on the graph
-  for (let n=1;n<=nS && showI;n++){
+  // images f(x_n): rug on the left edge and points on the graph
+  if (showI) for (let n=1;n<=nS;n++){
     const x = S.xs[n], y = S.fs[n];
     if (!isFinite(y)) continue;
     const col = !showE ? NEUTRAL : inEps(n) ? css("--good") : css("--bad"), latest = n === nS;
@@ -326,77 +621,68 @@ function draw(){
     dashed(ctx, X(xn), Y(fn), PL, Y(fn), "rgba(15,23,42,0.5)", 1.4, [4,4]);
   }
 
-  // ε labels in the right margin
+  // L labels in the right margin
   ctx.font = `600 16px ${FONT}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillStyle = css("--eps");
-  const yL = Y(S.L), yt = Y(S.L+S.eps), yb = Y(S.L-S.eps), inY = p => p>=PT-4 && p<=PB+4;
-  if (!showE){ if (showL && inY(yL)) ctx.fillText("L", PR+10, yL); }
-  else if (yb - yL >= 22){
+  const yL = Y(S.L), inY = p => p>=PT-4 && p<=PB+4;
+  if (showE && yb - yL >= 22){
     if (inY(yt)) ctx.fillText("L + ε", PR+10, yt);
     if (inY(yL)) ctx.fillText("L", PR+10, yL);
     if (inY(yb)) ctx.fillText("L − ε", PR+10, yb);
-  } else if (inY(yL)) ctx.fillText("L ± ε", PR+10, yL);
+  } else if (showE){ if (inY(yL)) ctx.fillText("L ± ε", PR+10, yL); }
+  else if (showL && inY(yL)) ctx.fillText("L", PR+10, yL);
 
-  /* --- number line for the sequence --- */
+  /* --- number line --- */
   ctx.fillStyle = "#334155"; ctx.font = `600 15px ${FONT}`; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   ctx.fillText("The sequence on the x-axis", PL, PB+52);
-
   ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(PL, LY); ctx.lineTo(PR, LY); ctx.stroke();
   for (let x = Math.ceil(w.x0/sx-1e-9)*sx; x <= w.x1+1e-9; x += sx){
     ctx.beginPath(); ctx.moveTo(X(x), LY-4); ctx.lineTo(X(x), LY+4); ctx.stroke();
   }
-  // the δ-neighborhood (c − δ, c + δ) as a thick segment with open endpoints
-  const sl = Math.max(xl, PL), sr = Math.min(xr, PR);
   if (showD){
+    const sl = Math.max(xl, PL), sr = Math.min(xr, PR);
     ctx.strokeStyle = css("--del"); ctx.lineWidth = 6; ctx.lineCap = "butt";
     ctx.beginPath(); ctx.moveTo(sl, LY); ctx.lineTo(sr, LY); ctx.stroke();
     if (xl >= PL) circle(ctx, xl, LY, 5, "#fff", css("--del"), 2.5);
     if (xr <= PR) circle(ctx, xr, LY, 5, "#fff", css("--del"), 2.5);
   }
-  // c itself (excluded: x_n ≠ c)
   ctx.strokeStyle = "#0f172a"; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(xc, LY-9); ctx.lineTo(xc, LY+9); ctx.stroke();
+
+  ctx.font = `600 16px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  const ly = LY + 30;
+  ctx.fillStyle = "#0f172a"; ctx.fillText("c", xc, ly);
   if (showD){
-    dashed(ctx, xc, PT, xc, PB, "rgba(29,78,216,0.6)");
-    dashed(ctx, xc, PB+30, xc, LY-10, "rgba(29,78,216,0.6)");
+    ctx.fillStyle = css("--del");
+    if (xc - xl >= 46){
+      if (xl >= PL-4) ctx.fillText("c − δ", xl, ly);
+      if (xr <= PR+4) ctx.fillText("c + δ", xr, ly);
+    } else ctx.fillText("δ-neighborhood", xc, ly+20);
   }
 
-  // labels c − δ, c, c + δ below the line
-  ctx.font = `600 16px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = css("--del");
-  const ly = LY + 30;
-  if (!showD){ ctx.fillStyle = "#0f172a"; ctx.fillText("c", xc, ly); }
-  else if (xc - xl >= 46){
-    if (xl >= PL-4) ctx.fillText("c − δ", xl, ly);
-    ctx.fillStyle = "#0f172a"; ctx.fillText("c", xc, ly); ctx.fillStyle = css("--del");
-    if (xr <= PR+4) ctx.fillText("c + δ", xr, ly);
-  } else { ctx.fillStyle = "#0f172a"; ctx.fillText("c", xc, ly); ctx.fillStyle = css("--del"); ctx.fillText("δ-neighborhood", xc, ly+20); }
-
-  // hops between consecutive terms (arcs above the line)
   if ($("tArcs").checked){
     for (let n=2;n<=nS;n++){
       const a = S.xs[n-1], b = S.xs[n];
       if (!inX(a) || !inX(b)) continue;
       const pa = X(a), pb = X(b), hgt = Math.min(70, Math.abs(pb-pa)*0.45) + 6;
       ctx.strokeStyle = n === nS ? "rgba(124,58,237,0.85)" : "rgba(100,116,139,0.35)";
-      ctx.lineWidth = n === nS ? 2.2 : 1.3;
+      ctx.lineWidth = n === nS ? 2.2 : 1.3; ctx.lineCap = "round";
       ctx.beginPath(); ctx.moveTo(pa, LY-6); ctx.quadraticCurveTo((pa+pb)/2, LY-6-2*hgt, pb, LY-6); ctx.stroke();
     }
   }
-  // the terms
-  for (let n=1;n<=nS && showT;n++){
-    const x = S.xs[n]; if (!inX(x)) continue;
-    const col = !showD ? NEUTRAL : inDel(n) ? css("--del") : "#94a3b8";
-    if (n === nS) circle(ctx, X(x), LY, 8, col, "#fff", 2.5);
-    else circle(ctx, X(x), LY, 5, col, "#fff", 1.5);
+  if (showT){
+    for (let n=1;n<=nS;n++){
+      const x = S.xs[n]; if (!inX(x)) continue;
+      const col = !showD ? NEUTRAL : inDel(n) ? css("--del") : "#94a3b8";
+      if (n === nS) circle(ctx, X(x), LY, 8, col, "#fff", 2.5);
+      else circle(ctx, X(x), LY, 5, col, "#fff", 1.5);
+    }
+    if (showD && N !== null && N <= nS && inX(S.xs[N])) circle(ctx, X(S.xs[N]), LY, 12, null, css("--acc"), 2.5);
   }
-  // ring on x_N once it has appeared
-  if (showT && showD && N !== null && N <= nS && inX(S.xs[N])) circle(ctx, X(S.xs[N]), LY, 12, null, css("--acc"), 2.5);
-
-  // term labels x_n above the line, skipping any that would collide
   if ($("tLabels").checked){
-    const placed = [];
-    const want = [nS]; for (let n=1;n<nS;n++) want.push(n);
-    if (showD && N !== null && N <= nS) want.splice(1, 0, N);
+    const placed = [], want = [nS];
+    if (showD && N !== null && N <= nS) want.push(N);
+    for (let n=1;n<nS;n++) want.push(n);
     for (const n of want){
       const x = S.xs[n]; if (!inX(x)) continue;
       const p = X(x);
@@ -406,16 +692,13 @@ function draw(){
       subLabel(ctx, "x", String(n), p, LY-18, 16, col);
     }
   }
-
-  updateStatus(N, works, fail, showD, showE);
+  updateStatus(N, works, fail, showD, showE, showI);
 }
 
-function updateStatus(N, works, fail, showD, showE){
-  const nS = S.nShown, F = S.F;
-  const xn = S.xs[nS], inside = Math.abs(xn-F.c) < S.del;
+function updateStatus(N, works, fail, showD, showE, showI){
+  const nS = S.nShown, F = S.F, xn = S.xs[nS], inside = Math.abs(xn-S.c) < S.del;
   let h = "";
-  if (!showD)
-    h += `<div class="small">Turn on the δ-neighborhood to look for N.</div>`;
+  if (!showD) h += `<div class="small">Turn on δ to look for N.</div>`;
   else if (N === null)
     h += `<div class="big no">No N found</div><div class="small">The terms keep leaving (c − δ, c + δ) through n = 100,000.</div>`;
   else if (nS < N)
@@ -424,67 +707,54 @@ function updateStatus(N, works, fail, showD, showE){
   else
     h += `<div class="big" style="color:var(--acc)">In the δ-neighborhood: N = ${fmtInt(N)}</div>
           <div class="small">Every term from x<sub>${fmtInt(N)}</sub> on lies in (c − δ, c + δ).</div>`;
-  if (!(showD && showE)) {}
-  else if (works)
-    h += `<div class="small ok" style="margin-top:8px"><b>✓ δ works for this ε</b>, so f(x<sub>n</sub>) lies in (L − ε, L + ε) for every n ≥ N.</div>`;
-  else
-    h += `<div class="small no" style="margin-top:8px"><b>✗ δ does not work for this ε</b>, so landing in (c − δ, c + δ) does not force f(x<sub>n</sub>) into (L − ε, L + ε).</div>`;
+  if (showD && showE){
+    h += works
+      ? `<div class="small ok" style="margin-top:8px"><b>✓ δ works for this ε</b>, so f(x<sub>n</sub>) lies in (L − ε, L + ε) for every n ≥ N.</div>`
+      : `<div class="small no" style="margin-top:8px"><b>✗ δ does not work for this ε</b>, so landing in (c − δ, c + δ) does not force f(x<sub>n</sub>) into (L − ε, L + ε).</div>`;
+  }
   h += `<div class="readout">x<sub>${nS}</sub> = ${fmt(xn)}${showD ? ` (${inside ? "inside" : "outside"} the δ-neighborhood)` : ""}`
-     + (showI() ? `<br>f(x<sub>${nS}</sub>) = ${fmt(S.fs[nS])}` : "") + `</div>`;
+     + (showI ? `<br>f(x<sub>${nS}</sub>) = ${fmt(S.fs[nS])}` : "") + `</div>`;
   $("status").innerHTML = h;
   $("bestBtn").disabled = !!(fail && fail.d <= F.d[0]);
 }
 
-const showI = () => $("tImg").checked;
-
 /* ---------- Controls ---------- */
-function setRange(id, min, max, step, val){ const r=$(id); r.min=min; r.max=max; r.step=step; r.value=val; }
-function syncControls(){
-  const F = S.F;
-  setRange("Lrng", F.win.y0, F.win.y1, 0.01, S.L);  $("Lnum").value = fmtIn(S.L);
-  setRange("epsRng", 0.005, F.eps[1], 0.005, S.eps); $("epsNum").value = fmtIn(S.eps);
-  setRange("delRng", 0.001, F.del[1], 0.001, S.del); $("delNum").value = fmtIn(S.del);
-  $("nRng").value = S.nShown; $("nNum").value = S.nShown;
-}
-function fillSeqMenu(){
-  const F = S.F, sel = $("ssel"), idx = SEQS.indexOf(S.seq);
-  sel.innerHTML = "";
-  SEQS.forEach((s,i) => { const o=document.createElement("option"); o.value=i; o.textContent=seqText(F,s,false); sel.appendChild(o); });
-  sel.value = idx;
-  $("seqFormula").innerHTML = "x<sub>n</sub> = " + seqText(F, S.seq, true);
-}
-function selectFunc(i){
-  const F = S.F = FUNCS[i];
-  if (!F.d) F.d = sampleDistances(F.del[1]);
-  S.L = F.L !== null ? F.L : F.Ldef; S.eps = F.eps[0]; S.del = F.del[0];
-  fillSeqMenu(); buildSequence(); syncControls(); draw();
-}
-function selectSeq(i){
-  S.seq = SEQS[i];
-  $("seqFormula").innerHTML = "x<sub>n</sub> = " + seqText(S.F, S.seq, true);
-  buildSequence(); draw();
-}
-function bindPair(rngId, numId, key, positive){
-  const r = $(rngId), num = $(numId);
-  r.addEventListener("input", () => { S[key] = +r.value; num.value = fmtIn(S[key]); draw(); });
-  num.addEventListener("input", () => {
-    const v = parseFloat(num.value);
-    if (isFinite(v) && (!positive || v > 0)){ S[key] = v; r.value = v; draw(); }
-  });
-  num.addEventListener("change", () => { num.value = fmtIn(S[key]); });
-}
+fillFunctionMenu($("fsel"));
+setupCustomFunction(loadFunction, () => S);
+
+// changing the sequence keeps every other setting
+$("ssel").addEventListener("change", e => {
+  S.seqSel = e.target.value;
+  if (S.seqSel === "custom"){
+    $("seqBox").hidden = false;
+    if (!$("sExpr").value) $("sExpr").value = S.seqExpr;
+    $("sExpr").focus();
+  } else {
+    $("seqBox").hidden = true;
+    const q = SEQS[+S.seqSel];
+    useSequence(fillK(q.expr, S.F.k), fillK(q.pretty, S.F.k)); draw();
+  }
+});
+const goSeq = () => {
+  try {
+    const t = $("sExpr").value;
+    useSequence(t, minus(t).replace(/\*/g, "·"));
+    $("sErr").textContent = ""; draw();
+  } catch (e){ $("sErr").textContent = e.message; }
+};
+$("sGo").addEventListener("click", goSeq);
+$("sExpr").addEventListener("keydown", e => { if (e.key === "Enter") goSeq(); });
+
+bindPair("cRng","cNum", () => S.c, v => { S.c = v; buildSequence(); draw(); }, v => true);
+bindPair("Lrng","Lnum", () => S.L, v => { S.L = v; draw(); }, v => true);
+bindPair("epsRng","epsNum", () => S.eps, v => { S.eps = v; draw(); }, v => v > 0);
+bindPair("delRng","delNum", () => S.del, v => { S.del = v; draw(); }, v => v > 0);
+
 function setN(n){
   S.nShown = Math.max(1, Math.min(NMAX, Math.round(n)));
   $("nRng").value = S.nShown; $("nNum").value = S.nShown; draw();
 }
 function stopPlay(){ if (S.timer){ clearInterval(S.timer); S.timer = null; } $("playBtn").textContent = "Play"; }
-
-FUNCS.forEach((F,i) => { const o=document.createElement("option"); o.value=i; o.textContent=F.label; $("fsel").appendChild(o); });
-$("fsel").addEventListener("change", e => selectFunc(+e.target.value));
-$("ssel").addEventListener("change", e => selectSeq(+e.target.value));
-bindPair("Lrng","Lnum","L",false);
-bindPair("epsRng","epsNum","eps",true);
-bindPair("delRng","delNum","del",true);
 $("nRng").addEventListener("input", e => { stopPlay(); setN(+e.target.value); });
 $("nNum").addEventListener("input", e => { const v = parseInt(e.target.value); if (v>=1 && v<=NMAX){ stopPlay(); setN(v); } });
 $("nNum").addEventListener("change", e => { e.target.value = S.nShown; });
@@ -497,21 +767,18 @@ $("playBtn").addEventListener("click", () => {
   S.timer = setInterval(() => { if (S.nShown >= NMAX) stopPlay(); else setN(S.nShown + 1); }, 600);
 });
 $("bestBtn").addEventListener("click", () => {
-  const fail = firstFail(S.F, S.L, S.eps);
-  S.del = fail ? fail.d : S.F.del[1];
-  syncControls(); draw();
+  const fail = firstFail(S.F, S.c, S.L, S.eps);
+  S.del = fail ? fail.d : S.F.del[1]; syncControls(); draw();
 });
-["tL","tTerms","tGraph","tImg","tEps","tDel","tArcs","tLabels","tGuide"].forEach(id => $(id).addEventListener("change", draw));
+document.querySelectorAll("#ctrls input[type=checkbox]").forEach(b => b.addEventListener("change", draw));
 
 function resize(){
   const w = cv.parentElement.clientWidth - 20;
-  const h = Math.max(560, Math.min(w*0.78, window.innerHeight - 140));
-  cv.style.height = h + "px";
-  if (S.F) draw();
+  cv.style.height = Math.max(560, Math.min(w*0.78, window.innerHeight - 140)) + "px";
+  draw();
 }
 new ResizeObserver(resize).observe(cv.parentElement);
 window.addEventListener("resize", resize);
-selectFunc(0);
 resize();
 </script>
 </body>

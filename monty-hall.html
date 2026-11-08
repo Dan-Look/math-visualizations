@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Monty Hall Problem</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2563eb; --door:#8b5a2b; --doorDark:#6b4220; --stay:#2563eb; --switch:#ea580c; --win:#16a34a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);font-size:18px}
+  header{padding:14px 24px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+  h1{margin:0;font-size:26px}
+  .tabs{display:flex;gap:6px}
+  .tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .main{padding:20px 24px;display:flex;flex-direction:column;gap:20px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .controls{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-end}
+  .ctl label.t{display:block;font-weight:600;margin-bottom:6px}
+  .row{display:flex;gap:10px;align-items:center}
+  input[type=range]{width:220px}
+  input[type=number]{width:80px;font-size:18px;padding:4px 6px;border:1px solid var(--line);border-radius:6px}
+  button{font-size:17px;padding:9px 14px;border-radius:8px;border:1px solid var(--line);
+         background:#fff;cursor:pointer;color:var(--ink)}
+  button:hover:not(:disabled){background:#f1f5f9}
+  button:disabled{opacity:.45;cursor:default}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.primary:hover:not(:disabled){background:#1d4ed8}
+  .chk{display:flex;align-items:center;gap:8px;cursor:pointer}
+  .chk input{width:18px;height:18px}
+
+  #msg{font-size:22px;min-height:32px;margin-bottom:14px;font-weight:600}
+  #doors{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .door{position:relative;border-radius:8px 8px 3px 3px;background:var(--door);color:#fff;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        border:4px solid var(--doorDark);cursor:default;user-select:none;font-weight:700}
+  .door.clickable{cursor:pointer}
+  .door.clickable:hover{filter:brightness(1.12)}
+  .door .num{position:absolute;top:4px}
+  .door .knob{position:absolute;right:12%;top:55%;width:10%;aspect-ratio:1;border-radius:50%;background:#f3d27a}
+  .door.revealed{background:#f8fafc;color:var(--ink);border-color:#cbd5e1}
+  .door.revealed .knob{display:none}
+  .door .prize{line-height:1}
+  .door.picked{box-shadow:0 0 0 4px #fff,0 0 0 8px var(--stay)}
+  .door.target{box-shadow:0 0 0 4px #fff,0 0 0 8px var(--switch)}
+  .door .tag{position:absolute;bottom:-26px;font-size:14px;font-weight:700;white-space:nowrap}
+  #doorsWrap{padding-bottom:30px}
+  .actions{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+
+  .bottom{display:grid;grid-template-columns:minmax(320px,1fr) 1.4fr;gap:20px;align-items:start}
+  @media (max-width:1000px){.bottom{grid-template-columns:1fr}}
+  table{border-collapse:collapse;width:100%;font-size:20px;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  td.theo{white-space:nowrap}
+  th{font-size:16px;color:var(--muted);font-weight:600}
+  .theo{color:var(--muted)}
+  .legend{display:flex;gap:20px;font-size:16px;margin-bottom:6px;flex-wrap:wrap}
+  .ln{display:inline-block;width:26px;height:4px;vertical-align:middle;margin-right:6px;border-radius:2px}
+  canvas{width:100%;height:auto;display:block}
+  .note{font-size:15px;color:var(--muted);margin-top:10px}
+  details{font-size:16px;color:var(--muted)}
+  details summary{cursor:pointer;font-weight:600}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+<header>
+  <h1>The Monty Hall Problem</h1>
+  <div class="tabs">
+    <button id="tabPlay" class="active">Play</button>
+    <button id="tabSim">Simulate</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="panel controls">
+    <div class="ctl">
+      <label class="t">Number of doors <i>n</i></label>
+      <div class="row">
+        <input type="range" id="nSlider" min="3" max="100" value="3">
+        <input type="number" id="nNum" min="3" max="100" value="3">
+      </div>
+    </div>
+    <div class="ctl">
+      <label class="t">Doors the host opens <i>k</i></label>
+      <div class="row">
+        <input type="range" id="kSlider" min="1" max="1" value="1">
+        <input type="number" id="kNum" min="1" max="1" value="1">
+        <button id="kMax" title="Host opens every other door but one">All but one</button>
+      </div>
+    </div>
+    <label class="chk"><input type="checkbox" id="showTheory"> Show theoretical probabilities</label>
+  </div>
+
+  <div class="panel" id="doorsPanel">
+    <div id="msg"></div>
+    <div id="doorsWrap"><div id="doors"></div></div>
+    <div class="actions" id="playActions">
+      <button class="primary" id="newGame">New game</button>
+    </div>
+    <div class="actions hidden" id="simActions">
+      <button class="primary" data-run="1">Run 1</button>
+      <button class="primary" data-run="10">Run 10</button>
+      <button class="primary" data-run="100">Run 100</button>
+      <button class="primary" data-run="1000">Run 1000</button>
+      <button id="simReset">Reset</button>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="panel">
+      <table>
+        <thead><tr><th id="tblTitle">Your games</th><th>Wins</th><th>Games</th><th>Win fraction</th><th class="theo tcol">Theory</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--stay);font-weight:700">Stay</td><td id="sW">0</td><td id="sG">0</td><td id="sF">—</td><td class="theo tcol" id="sT"></td></tr>
+          <tr><td style="color:var(--switch);font-weight:700">Switch</td><td id="wW">0</td><td id="wG">0</td><td id="wF">—</td><td class="theo tcol" id="wT"></td></tr>
+        </tbody>
+      </table>
+      <details style="margin-top:14px">
+        <summary>Assumptions</summary>
+        <p>The car is behind a door chosen uniformly at random. The host knows where the car is, never opens your door
+        or the car's door, and chooses which goat doors to open at random. When <i>k</i> &lt; <i>n</i> − 2, "switch" means
+        moving to one of the other closed doors chosen at random.</p>
+      </details>
+    </div>
+
+    <div class="panel" id="graphPanel">
+      <div class="legend">
+        <span><span class="ln" style="background:var(--stay)"></span>Stay: running win fraction</span>
+        <span><span class="ln" style="background:var(--switch)"></span>Switch: running win fraction</span>
+      </div>
+      <canvas id="cv" width="760" height="400"></canvas>
+      <div class="note">Each simulated game is scored for both strategies. A finite run of games gives evidence about
+      the probabilities, not a proof.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const MAXG = 10000;
+let n = 3, k = 1, mode = 'play';
+let game = null;                       // current game shown on the doors
+let tally = {play: newTally(), sim: newTally()};
+let hist = {stay: [], sw: []};         // running fractions for simulation
+
+function newTally(){ return {sW:0, sG:0, wW:0, wG:0}; }
+function rint(m){ return Math.floor(Math.random() * m); }
+function gcd(a,b){ while(b){ [a,b] = [b, a % b]; } return a; }
+function frac(a,b){ const g = gcd(a,b); return `${a/g}/${b/g} ≈ ${(a/b).toFixed(3)}`; }
+
+// Host opens k goat doors, never the player's pick or the car, chosen at random.
+function hostOpens(car, pick){
+  const elig = [];
+  for (let d = 0; d < n; d++) if (d !== car && d !== pick) elig.push(d);
+  for (let i = 0; i < k; i++){ const j = i + rint(elig.length - i); [elig[i], elig[j]] = [elig[j], elig[i]]; }
+  return new Set(elig.slice(0, k));
+}
+function closedOthers(g){
+  const out = [];
+  for (let d = 0; d < n; d++) if (d !== g.pick && !g.opened.has(d)) out.push(d);
+  return out;
+}
+
+/* ---------- controls ---------- */
+function link(slider, num, onChange){
+  slider.addEventListener('input', () => { num.value = slider.value; onChange(+slider.value); });
+  num.addEventListener('change', () => {
+    let v = Math.round(+num.value);
+    v = Math.max(+slider.min, Math.min(+slider.max, isNaN(v) ? +slider.value : v));
+    num.value = v; slider.value = v; onChange(v);
+  });
+}
+function setK(v){
+  k = v; $('kSlider').value = v; $('kNum').value = v;
+  resetAll();
+}
+link($('nSlider'), $('nNum'), v => {
+  n = v;
+  $('kSlider').max = n - 2; $('kNum').max = n - 2;
+  if (k > n - 2) k = n - 2;
+  setK(k);
+});
+link($('kSlider'), $('kNum'), v => setK(v));
+$('kMax').onclick = () => setK(n - 2);
+$('showTheory').addEventListener('change', renderStats);
+
+$('tabPlay').onclick = () => setMode('play');
+$('tabSim').onclick = () => setMode('sim');
+function setMode(m){
+  mode = m;
+  $('tabPlay').classList.toggle('active', m === 'play');
+  $('tabSim').classList.toggle('active', m === 'sim');
+  $('playActions').classList.toggle('hidden', m !== 'play');
+  $('simActions').classList.toggle('hidden', m !== 'sim');
+  $('graphPanel').classList.toggle('hidden', m !== 'sim');
+  $('tblTitle').textContent = m === 'play' ? 'Your games' : 'Simulated games';
+  if (m === 'play') newPlayGame(); else { game = lastSim; renderDoors(); }
+  renderStats();
+}
+
+function resetAll(){
+  tally = {play: newTally(), sim: newTally()};
+  hist = {stay: [], sw: []};
+  lastSim = null;
+  if (mode === 'play') newPlayGame(); else { game = null; renderDoors(); }
+  renderStats();
+}
+
+/* ---------- play mode ---------- */
+function newPlayGame(){
+  game = {car: rint(n), pick: null, opened: new Set(), final: null, phase: 'pick', sim: false};
+  renderDoors();
+}
+function clickDoor(d){
+  if (mode !== 'play') return;
+  if (game.phase === 'pick'){
+    game.pick = d;
+    game.opened = hostOpens(game.car, d);
+    game.phase = 'decide';
+  } else if (game.phase === 'decide'){
+    if (game.opened.has(d)) return;
+    game.final = d;
+    game.phase = 'done';
+    const t = tally.play, won = d === game.car;
+    if (d === game.pick){ t.sG++; if (won) t.sW++; } else { t.wG++; if (won) t.wW++; }
+    renderStats();
+  }
+  renderDoors();
+}
+
+/* ---------- simulate mode ---------- */
+let lastSim = null;
+function simulate(count){
+  const t = tally.sim;
+  count = Math.min(count, MAXG - t.sG);
+  for (let i = 0; i < count; i++){
+    const car = rint(n), pick = rint(n);
+    const g = {car, pick, opened: hostOpens(car, pick), phase: 'done', sim: true};
+    const others = closedOthers(g);
+    g.final = others[rint(others.length)];         // switch target
+    t.sG++; t.wG++;
+    if (pick === car) t.sW++;
+    if (g.final === car) t.wW++;
+    hist.stay.push(t.sW / t.sG);
+    hist.sw.push(t.wW / t.wG);
+    lastSim = g;
+  }
+  game = lastSim; renderDoors(); renderStats();
+}
+document.querySelectorAll('[data-run]').forEach(b => b.onclick = () => simulate(+b.dataset.run));
+$('simReset').onclick = () => { tally.sim = newTally(); hist = {stay: [], sw: []}; lastSim = null; game = null; renderDoors(); renderStats(); };
+$('newGame').onclick = newPlayGame;
+
+/* ---------- rendering ---------- */
+function doorSize(){
+  if (n <= 5)  return {w:130, f:22, p:60};
+  if (n <= 10) return {w:92,  f:20, p:44};
+  if (n <= 25) return {w:62,  f:16, p:30};
+  if (n <= 50) return {w:46,  f:13, p:22};
+  return {w:36, f:11, p:17};
+}
+function renderDoors(){
+  const box = $('doors'); box.innerHTML = '';
+  const sz = doorSize();
+  const g = game;
+  for (let d = 0; d < n; d++){
+    const e = document.createElement('div');
+    e.className = 'door';
+    e.style.width = sz.w + 'px'; e.style.height = Math.round(sz.w * 1.6) + 'px'; e.style.fontSize = sz.f + 'px';
+    let reveal = false, tag = '';
+    if (g){
+      if (g.opened.has(d) || g.phase === 'done') reveal = true;
+      if (g.pick === d){ e.classList.add('picked'); tag = 'Your pick'; }
+      if (g.phase === 'done' && g.final === d && g.final !== g.pick){ e.classList.add('target'); tag = g.sim ? 'Switch' : 'Switched'; }
+      if (mode === 'play' && (g.phase === 'pick' || (g.phase === 'decide' && !g.opened.has(d)))) e.classList.add('clickable');
+    }
+    if (reveal) e.classList.add('revealed');
+    const prize = reveal ? `<span class="prize" style="font-size:${sz.p}px">${g.car === d ? '🚗' : '🐐'}</span>` : '<span class="knob"></span>';
+    e.innerHTML = `<span class="num">${d + 1}</span>${prize}` + (tag && n <= 25 ? `<span class="tag" style="color:${tag==='Your pick'?'var(--stay)':'var(--switch)'}">${tag}</span>` : '');
+    e.onclick = () => clickDoor(d);
+    box.appendChild(e);
+  }
+  renderMsg();
+}
+function renderMsg(){
+  const g = game, m = $('msg');
+  if (mode === 'sim'){
+    if (!g){ m.textContent = 'Run some games.'; return; }
+    m.innerHTML = `Last game: car behind door ${g.car + 1}. ` +
+      `Stay (door ${g.pick + 1}) <span style="color:${g.pick===g.car?'var(--win)':'#b91c1c'}">${g.pick===g.car?'wins':'loses'}</span>; ` +
+      `switch (door ${g.final + 1}) <span style="color:${g.final===g.car?'var(--win)':'#b91c1c'}">${g.final===g.car?'wins':'loses'}</span>.`;
+    return;
+  }
+  if (g.phase === 'pick') m.textContent = 'Pick a door.';
+  else if (g.phase === 'decide') m.textContent = `The host opened ${k} door${k>1?'s':''} with goats. Click your door to stay, or another closed door to switch.`;
+  else {
+    const won = g.final === g.car, stayed = g.final === g.pick;
+    m.innerHTML = `You ${stayed ? 'stayed' : 'switched'} and <span style="color:${won?'var(--win)':'#b91c1c'}">${won ? 'won the car!' : 'got a goat.'}</span>`;
+  }
+}
+
+function renderStats(){
+  const t = mode === 'play' ? tally.play : tally.sim;
+  $('sW').textContent = t.sW; $('sG').textContent = t.sG;
+  $('wW').textContent = t.wW; $('wG').textContent = t.wG;
+  $('sF').textContent = t.sG ? (t.sW / t.sG).toFixed(3) : '—';
+  $('wF').textContent = t.wG ? (t.wW / t.wG).toFixed(3) : '—';
+  const show = $('showTheory').checked;
+  document.querySelectorAll('.tcol').forEach(e => e.classList.toggle('hidden', !show));
+  $('sT').textContent = frac(1, n);
+  $('wT').textContent = frac(n - 1, n * (n - 1 - k));
+  document.querySelectorAll('[data-run]').forEach(b => b.disabled = tally.sim.sG >= MAXG);
+  drawGraph();
+}
+
+/* ---------- graph: fixed axes, log scale for games 1..10000, win fraction 0..1 ---------- */
+function drawGraph(){
+  const cv = $('cv'), W = 760, H = 400, dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const L = 70, R = 40, T = 16, B = 58, pw = W - L - R, ph = H - T - B;
+  const X = g => L + Math.log10(g) / 4 * pw;
+  const Y = p => T + (1 - p) * ph;
+  c.clearRect(0, 0, W, H);
+  c.font = '16px system-ui, sans-serif'; c.fillStyle = '#374151';
+  c.strokeStyle = '#e5e7eb'; c.lineWidth = 1;
+  [0, 0.25, 0.5, 0.75, 1].forEach(p => {
+    c.beginPath(); c.moveTo(L, Y(p)); c.lineTo(L + pw, Y(p)); c.stroke();
+    c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText(p.toString(), L - 8, Y(p));
+  });
+  [1, 10, 100, 1000, 10000].forEach(g => {
+    c.beginPath(); c.moveTo(X(g), T); c.lineTo(X(g), T + ph); c.stroke();
+    c.textAlign = 'center'; c.textBaseline = 'top'; c.fillText(g.toLocaleString(), X(g), T + ph + 8);
+  });
+  c.strokeStyle = '#9ca3af'; c.strokeRect(L, T, pw, ph);
+  c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+  c.fillText('Number of games (log scale)', L + pw / 2, H - 8);
+  c.save(); c.translate(18, T + ph / 2); c.rotate(-Math.PI / 2); c.fillText('Win fraction', 0, 0); c.restore();
+
+  if ($('showTheory').checked){
+    c.setLineDash([8, 6]); c.lineWidth = 2;
+    [[1 / n, '#2563eb'], [(n - 1) / (n * (n - 1 - k)), '#ea580c']].forEach(([p, col]) => {
+      c.strokeStyle = col; c.globalAlpha = 0.6;
+      c.beginPath(); c.moveTo(L, Y(p)); c.lineTo(L + pw, Y(p)); c.stroke();
+    });
+    c.setLineDash([]); c.globalAlpha = 1;
+  }
+  [[hist.stay, '#2563eb'], [hist.sw, '#ea580c']].forEach(([arr, col]) => {
+    if (!arr.length) return;
+    c.strokeStyle = col; c.lineWidth = 2.5; c.beginPath();
+    arr.forEach((p, i) => { const x = X(i + 1), y = Y(p); i ? c.lineTo(x, y) : c.moveTo(x, y); });
+    c.stroke();
+    if (arr.length === 1){ c.fillStyle = col; c.beginPath(); c.arc(X(1), Y(arr[0]), 4, 0, 2 * Math.PI); c.fill(); }
+  });
+}
+
+setMode('play');
+</script>
+</body>
+</html>

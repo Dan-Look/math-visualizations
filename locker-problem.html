@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Locker Problem</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2563eb; --closed:#64748b; --open:#f59e0b; --hit:#dc2626; --sq:#7c3aed;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);font-size:18px}
+  header{padding:14px 24px;background:#fff;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:26px}
+  .wrap{display:grid;grid-template-columns:330px 1fr;gap:20px;padding:20px 24px;align-items:start}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .ctl{margin-bottom:16px}
+  .ctl label.t{display:block;font-weight:600;margin-bottom:6px}
+  .row{display:flex;gap:10px;align-items:center}
+  input[type=range]{flex:1}
+  input[type=number]{width:80px;font-size:18px;padding:4px 6px;border:1px solid var(--line);border-radius:6px}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button{font-size:17px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
+         background:#fff;cursor:pointer;color:var(--ink)}
+  button:hover{background:#f1f5f9}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.primary:hover{background:#1d4ed8}
+  .chk{display:flex;align-items:center;gap:8px;margin:6px 0;cursor:pointer}
+  .chk input{width:18px;height:18px}
+  .status{display:flex;gap:28px;flex-wrap:wrap;font-size:22px;margin-bottom:14px}
+  .status b{font-variant-numeric:tabular-nums}
+  #grid{display:grid;gap:6px;max-width:min(100%,78vh);margin:0 auto}
+  .locker{position:relative;aspect-ratio:1/1;border-radius:5px;background:var(--closed);color:#fff;
+          display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;
+          border:3px solid transparent;transition:background .15s;user-select:none}
+  .locker.open{background:var(--open);color:#3b2600}
+  .locker.hit{border-color:var(--hit)}
+  .locker.sel{outline:3px solid var(--accent);outline-offset:2px}
+  .locker .cnt{position:absolute;bottom:2px;right:4px;font-size:.62em;font-weight:600;opacity:.9}
+  .locker.sq::before{content:"";position:absolute;top:3px;left:3px;width:9px;height:9px;border-radius:50%;background:var(--sq);box-shadow:0 0 0 2px #fff}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:15px;color:var(--muted);margin-top:12px}
+  .sw{display:inline-block;width:16px;height:16px;border-radius:3px;vertical-align:-3px;margin-right:5px}
+  #info{margin-top:14px;font-size:18px;min-height:28px}
+  #info .done{font-weight:700;color:var(--ink)}
+  #info .todo{color:#b0b6c0}
+  #openList{margin-top:10px;font-size:18px;word-break:break-word}
+</style>
+</head>
+<body>
+<header><h1>The Locker Problem</h1></header>
+
+<div class="wrap">
+  <div class="panel">
+    <div class="ctl">
+      <label class="t">Number of lockers (and students)</label>
+      <div class="row">
+        <input type="range" id="nSlider" min="10" max="400" value="100">
+        <input type="number" id="nNum" min="10" max="400" value="100">
+      </div>
+    </div>
+
+    <div class="ctl btns">
+      <button class="primary" id="stepBtn">Next student</button>
+      <button id="playBtn">Play</button>
+      <button id="finishBtn">Finish</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+
+    <div class="ctl">
+      <label class="t">Speed (students per second)</label>
+      <div class="row">
+        <input type="range" id="spSlider" min="1" max="20" value="4">
+        <input type="number" id="spNum" min="1" max="20" value="4">
+      </div>
+    </div>
+
+    <div class="ctl">
+      <label class="chk"><input type="checkbox" id="showCounts"> Show number of toggles</label>
+      <label class="chk"><input type="checkbox" id="showSquares"> Mark perfect squares</label>
+      <label class="chk"><input type="checkbox" id="showList"> List open lockers</label>
+    </div>
+
+    <div style="font-size:15px;color:var(--muted)">
+      Student <i>k</i> toggles every locker whose number is a multiple of <i>k</i>.
+      Click a locker to see which students touch it.
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="status">
+      <div>Student: <b id="kOut">0</b> / <b id="nOut">100</b></div>
+      <div>Open lockers: <b id="openOut">0</b></div>
+    </div>
+    <div id="grid"></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--closed)"></span>Closed</span>
+      <span><span class="sw" style="background:var(--open)"></span>Open</span>
+      <span><span class="sw" style="background:#fff;border:3px solid var(--hit)"></span>Toggled by current student</span>
+    </div>
+    <div id="info"></div>
+    <div id="openList"></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let n = 100, k = 0, isOpen = [], counts = [], hit = new Set(), selected = null, timer = null;
+let els = [];
+
+function link(slider, num, onChange){
+  slider.addEventListener('input', () => { num.value = slider.value; onChange(+slider.value); });
+  num.addEventListener('change', () => {
+    let v = Math.round(+num.value);
+    v = Math.max(+slider.min, Math.min(+slider.max, isNaN(v) ? +slider.value : v));
+    num.value = v; slider.value = v; onChange(v);
+  });
+}
+
+function build(){
+  const g = $('grid');
+  g.style.gridTemplateColumns = `repeat(${n <= 100 ? 10 : 20}, 1fr)`;
+  g.style.fontSize = n <= 100 ? '18px' : '13px';
+  g.innerHTML = '';
+  els = [null];
+  for (let i = 1; i <= n; i++){
+    const d = document.createElement('div');
+    d.className = 'locker';
+    d.innerHTML = `<span>${i}</span><span class="cnt"></span>`;
+    d.addEventListener('click', () => { selected = (selected === i ? null : i); render(); });
+    g.appendChild(d);
+    els.push(d);
+  }
+}
+
+function reset(){
+  stop();
+  k = 0; hit = new Set();
+  isOpen = new Array(n + 1).fill(false);
+  counts = new Array(n + 1).fill(0);
+  if (selected !== null && selected > n) selected = null;
+  build(); render();
+}
+
+function doStudent(){
+  k++;
+  hit = new Set();
+  for (let j = k; j <= n; j += k){ isOpen[j] = !isOpen[j]; counts[j]++; hit.add(j); }
+}
+
+function step(){
+  if (k >= n){ stop(); return; }
+  doStudent(); render();
+  if (k >= n) stop();
+}
+
+function finish(){
+  stop();
+  while (k < n) doStudent();
+  render();
+}
+
+function play(){
+  if (timer){ stop(); return; }
+  if (k >= n) reset();
+  $('playBtn').textContent = 'Pause';
+  timer = setInterval(step, 1000 / +$('spNum').value);
+}
+function stop(){
+  if (timer){ clearInterval(timer); timer = null; }
+  $('playBtn').textContent = 'Play';
+}
+
+function divisors(m){
+  const out = [];
+  for (let d = 1; d <= m; d++) if (m % d === 0) out.push(d);
+  return out;
+}
+
+function render(){
+  const showC = $('showCounts').checked, showS = $('showSquares').checked;
+  let open = 0;
+  for (let i = 1; i <= n; i++){
+    const e = els[i];
+    if (isOpen[i]) open++;
+    e.classList.toggle('open', isOpen[i]);
+    e.classList.toggle('hit', hit.has(i));
+    e.classList.toggle('sel', selected === i);
+    const r = Math.round(Math.sqrt(i));
+    e.classList.toggle('sq', showS && r * r === i);
+    e.querySelector('.cnt').textContent = showC ? counts[i] : '';
+  }
+  $('kOut').textContent = k;
+  $('nOut').textContent = n;
+  $('openOut').textContent = open;
+
+  if (selected !== null){
+    const ds = divisors(selected);
+    const parts = ds.map(d => `<span class="${d <= k ? 'done' : 'todo'}">${d}</span>`).join(', ');
+    $('info').innerHTML = `Locker <b>${selected}</b> is toggled by students ${parts} &nbsp;—&nbsp; ` +
+      `<b>${ds.length}</b> toggles in all (${counts[selected]} so far).`;
+  } else {
+    $('info').innerHTML = '';
+  }
+
+  if ($('showList').checked){
+    const list = [];
+    for (let i = 1; i <= n; i++) if (isOpen[i]) list.push(i);
+    $('openList').innerHTML = '<b>Open:</b> ' + (list.length ? list.join(', ') : '(none)');
+  } else {
+    $('openList').innerHTML = '';
+  }
+}
+
+link($('nSlider'), $('nNum'), v => { n = v; reset(); });
+link($('spSlider'), $('spNum'), v => { if (timer){ clearInterval(timer); timer = setInterval(step, 1000 / v); } });
+$('stepBtn').onclick = () => { stop(); step(); };
+$('playBtn').onclick = play;
+$('finishBtn').onclick = finish;
+$('resetBtn').onclick = reset;
+['showCounts','showSquares','showList'].forEach(id => $(id).addEventListener('change', render));
+
+reset();
+</script>
+</body>
+</html>
