@@ -10,16 +10,16 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
        background:var(--bg);color:var(--ink);font-size:17px;line-height:1.4}
-  header{padding:18px 24px 0}
-  h1{margin:0 0 6px;font-size:28px;font-weight:700;letter-spacing:-.01em}
+  header{padding:14px 24px 0;display:flex;align-items:baseline;gap:10px 28px;flex-wrap:wrap}
+  h1{margin:0;font-size:26px;font-weight:700;letter-spacing:-.01em}
   .def{font-size:18px;color:#334155}
-  .wrap{display:flex;gap:20px;padding:16px 24px 24px;align-items:flex-start}
+  .wrap{display:flex;gap:18px;padding:12px 24px 16px;align-items:flex-start}
   .viz{flex:1 1 auto;min-width:0;background:var(--panel);border:1px solid var(--line);
        border-radius:14px;padding:10px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
   canvas{display:block;width:100%}
-  .panel{flex:0 0 340px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  .panel{flex:0 0 380px;max-height:calc(100vh - 80px);overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;
          padding:14px 18px 18px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
-  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 0 4px}
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:12px 0 4px}
   .panel h2:first-child{margin-top:2px}
   select{width:100%;font-size:16px;padding:8px;border-radius:8px;border:1px solid #cbd5e1;background:#fff}
   fieldset{border:0;margin:0;padding:0;min-width:0}
@@ -32,13 +32,12 @@
   .err{color:var(--bad);font-size:14px;margin-top:4px}
   .warn{color:#b45309;font-size:14px;margin-top:4px}
   .help{font-size:13px;color:var(--muted);margin-top:6px}
-  .ctl{margin:6px 0}
-  .ctl .row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
-  .ctl .name{font-weight:600;display:flex;align-items:center;gap:8px}
+  .ctl{display:grid;grid-template-columns:142px 1fr 84px;align-items:center;gap:10px;margin:7px 0}
+  .ctl .name{font-weight:600;display:flex;align-items:center;gap:8px;white-space:nowrap}
   label.name{cursor:pointer}
   .swc{width:18px;height:18px;margin:0;cursor:pointer}
   .spacer{width:18px;display:inline-block}
-  input[type=number]{width:100px;font-size:16px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;
+  input[type=number]{width:84px;font-size:16px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;
                      text-align:right;font-variant-numeric:tabular-nums}
   input[type=range]{width:100%;accent-color:var(--ink)}
   #epsRng{accent-color:var(--eps)} #delRng{accent-color:var(--del)} #nRng{accent-color:var(--acc)}
@@ -46,6 +45,7 @@
   button{font-size:15px;padding:7px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;
          color:var(--ink);cursor:pointer}
   button:hover{background:#eef2f7} button:disabled{opacity:.45;cursor:default}
+  .shows{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
   .tog{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:16px;cursor:pointer}
   .tog input{width:18px;height:18px;margin:0}
   .status{margin-top:12px;padding:12px;border-radius:10px;background:#f8fafc;border:1px solid var(--line)}
@@ -82,12 +82,8 @@
     </div>
 
     <fieldset id="ctrls" disabled>
-      <h2>Point</h2>
-      <div class="ctl">
-        <div class="row"><span class="name"><span class="spacer"></span>c</span>
-          <input type="number" id="cNum" step="any"></div>
-        <input type="range" id="cRng">
-      </div>
+      <div class="ctl"><span class="name"><span class="spacer"></span>Point c</span>
+        <input type="range" id="cRng"><input type="number" id="cNum" step="any"></div>
 
       <h2>Sequence</h2>
       <select id="ssel"></select>
@@ -101,11 +97,8 @@
       <div class="warn" id="seqWarn"></div>
 
       <h2>Terms</h2>
-      <div class="ctl">
-        <div class="row"><label class="name"><input type="checkbox" class="swc" id="tTerms" style="accent-color:var(--acc)">Terms shown</label>
-          <input type="number" id="nNum" step="1" min="1" max="60"></div>
-        <input type="range" id="nRng" min="1" max="60" step="1">
-      </div>
+      <div class="ctl"><label class="name"><input type="checkbox" class="swc" id="tTerms" style="accent-color:var(--acc)">Terms shown</label>
+        <input type="range" id="nRng" min="1" max="60" step="1"><input type="number" id="nNum" step="1" min="1" max="60"></div>
       <div class="btns">
         <button id="stepBtn">Step</button>
         <button id="playBtn">Play</button>
@@ -113,28 +106,21 @@
       </div>
 
       <h2>Neighborhoods</h2>
-      <div class="ctl">
-        <div class="row"><label class="name"><input type="checkbox" class="swc" id="tL" style="accent-color:#0f172a">Proposed limit L</label>
-          <input type="number" id="Lnum" step="any"></div>
-        <input type="range" id="Lrng">
-      </div>
-      <div class="ctl">
-        <div class="row"><label class="name"><input type="checkbox" class="swc" id="tEps" style="accent-color:var(--eps)">ε</label>
-          <input type="number" id="epsNum" step="any" min="0"></div>
-        <input type="range" id="epsRng">
-      </div>
-      <div class="ctl">
-        <div class="row"><label class="name"><input type="checkbox" class="swc" id="tDel" style="accent-color:var(--del)">δ</label>
-          <input type="number" id="delNum" step="any" min="0"></div>
-        <input type="range" id="delRng">
-      </div>
+      <div class="ctl"><label class="name"><input type="checkbox" class="swc" id="tL" style="accent-color:#0f172a">Limit L</label>
+        <input type="range" id="Lrng"><input type="number" id="Lnum" step="any"></div>
+      <div class="ctl"><label class="name"><input type="checkbox" class="swc" id="tEps" style="accent-color:var(--eps)">ε</label>
+        <input type="range" id="epsRng"><input type="number" id="epsNum" step="any" min="0"></div>
+      <div class="ctl"><label class="name"><input type="checkbox" class="swc" id="tDel" style="accent-color:var(--del)">δ</label>
+        <input type="range" id="delRng"><input type="number" id="delNum" step="any" min="0"></div>
       <div class="btns"><button id="bestBtn">Set δ to largest (numerical)</button></div>
 
       <h2>Show</h2>
-      <label class="tog"><input type="checkbox" id="tImg"> <span>Images f(x<sub>n</sub>)</span></label>
-      <label class="tog"><input type="checkbox" id="tArcs"> Hops between terms</label>
-      <label class="tog"><input type="checkbox" id="tLabels"> <span>Term labels x<sub>n</sub></span></label>
-      <label class="tog"><input type="checkbox" id="tGuide"> Guide line for the newest term</label>
+      <div class="shows">
+        <label class="tog"><input type="checkbox" id="tImg"> <span>Images f(x<sub>n</sub>)</span></label>
+        <label class="tog"><input type="checkbox" id="tArcs"> Hops</label>
+        <label class="tog"><input type="checkbox" id="tLabels"> <span>Labels x<sub>n</sub></span></label>
+        <label class="tog"><input type="checkbox" id="tGuide"> Guide line</label>
+      </div>
 
       <div class="status" id="status"></div>
       <div class="note">Checks use finitely many sample points and the first 100,000 terms. They are numerical evidence, not a proof.</div>
@@ -559,7 +545,7 @@ function draw(){
     $("status").innerHTML = ""; return;
   }
   const F = S.F, w = F.win, c = S.c;
-  const PL = 62, PR = W-80, PT = 18, PB = H-190, LY = H-62;
+  const PL = 62, PR = W-80, PT = 14, PB = H-128, LY = H-44;
   const X = x => PL + (x-w.x0)/(w.x1-w.x0)*(PR-PL);
   const Y = y => PB - (y-w.y0)/(w.y1-w.y0)*(PB-PT);
   const showL = $("tL").checked, showE = $("tEps").checked, showD = $("tDel").checked, showT = $("tTerms").checked,
@@ -632,8 +618,6 @@ function draw(){
   else if (showL && inY(yL)) ctx.fillText("L", PR+10, yL);
 
   /* --- number line --- */
-  ctx.fillStyle = "#334155"; ctx.font = `600 15px ${FONT}`; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-  ctx.fillText("The sequence on the x-axis", PL, PB+52);
   ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(PL, LY); ctx.lineTo(PR, LY); ctx.stroke();
   for (let x = Math.ceil(w.x0/sx-1e-9)*sx; x <= w.x1+1e-9; x += sx){
@@ -650,21 +634,21 @@ function draw(){
   ctx.beginPath(); ctx.moveTo(xc, LY-9); ctx.lineTo(xc, LY+9); ctx.stroke();
 
   ctx.font = `600 16px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "top";
-  const ly = LY + 30;
+  const ly = LY + 14;
   ctx.fillStyle = "#0f172a"; ctx.fillText("c", xc, ly);
   if (showD){
     ctx.fillStyle = css("--del");
     if (xc - xl >= 46){
       if (xl >= PL-4) ctx.fillText("c − δ", xl, ly);
       if (xr <= PR+4) ctx.fillText("c + δ", xr, ly);
-    } else ctx.fillText("δ-neighborhood", xc, ly+20);
+    }
   }
 
   if ($("tArcs").checked){
     for (let n=2;n<=nS;n++){
       const a = S.xs[n-1], b = S.xs[n];
       if (!inX(a) || !inX(b)) continue;
-      const pa = X(a), pb = X(b), hgt = Math.min(70, Math.abs(pb-pa)*0.45) + 6;
+      const pa = X(a), pb = X(b), hgt = Math.min(44, Math.abs(pb-pa)*0.4) + 5;
       ctx.strokeStyle = n === nS ? "rgba(124,58,237,0.85)" : "rgba(100,116,139,0.35)";
       ctx.lineWidth = n === nS ? 2.2 : 1.3; ctx.lineCap = "round";
       ctx.beginPath(); ctx.moveTo(pa, LY-6); ctx.quadraticCurveTo((pa+pb)/2, LY-6-2*hgt, pb, LY-6); ctx.stroke();
@@ -773,8 +757,9 @@ $("bestBtn").addEventListener("click", () => {
 document.querySelectorAll("#ctrls input[type=checkbox]").forEach(b => b.addEventListener("change", draw));
 
 function resize(){
-  const w = cv.parentElement.clientWidth - 20;
-  cv.style.height = Math.max(560, Math.min(w*0.78, window.innerHeight - 140)) + "px";
+  // fill the window height below the canvas's top edge
+  const top = cv.getBoundingClientRect().top + window.scrollY;
+  cv.style.height = Math.max(480, window.innerHeight - top - 30) + "px";
   draw();
 }
 new ResizeObserver(resize).observe(cv.parentElement);
