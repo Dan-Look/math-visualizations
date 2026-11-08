@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111b2b">
-  <meta name="description" content="Interactive mathematical visualizations for teaching and exploration: proofs and modular arithmetic, sequences, limits, and real analysis, oscillators and differential equations, and the Diseases & Dice epidemic game.">
+  <meta name="description" content="Interactive mathematical visualizations for teaching and exploration: proofs and modular arithmetic, sequences, limits, and real analysis, oscillators and differential equations, the Diseases & Dice epidemic game, and math riddles and tricks.">
   <title>Mathematical Visualizations</title>
   <style>
     :root { color-scheme: dark; --bg:#101827; --card:#1b2940; --ink:#f5f6f8; --muted:#bac9dc; --line:#344761; --accent:#f1c777; }
@@ -60,6 +60,7 @@
       <a href="#limits">Limits of Functions</a>
       <a href="#oscillators">Oscillators</a>
       <a href="#diseases">Diseases &amp; Dice</a>
+      <a href="#riddles">Riddles &amp; Tricks</a>
     </nav>
 
     <!-- ============ MODULAR ARITHMETIC ============ -->
@@ -129,7 +130,7 @@
       <p>See how ε and δ work together in the definition of a limit, and connect function limits back to sequences. These tools check finitely many points, so they motivate proofs rather than replace them.</p>
       <div class="grid three">
         <a class="card" href="epsilon-delta-explorer.html">
-          <span class="glyph" aria-hidden="true">0 &lt; |x − c| &lt; δ</span>
+          <span class="glyph" aria-hidden="true">0 &lt; |x − a| &lt; δ</span>
           <h3>Epsilon–Delta Limits</h3>
           <p>Choose ε, then search for a δ that keeps the graph inside the ε-band, or find a counterexample when no δ works.</p>
           <span class="go">Open explorer →</span>
@@ -193,6 +194,33 @@
           <h3>Continuous SIR Simulator</h3>
           <p>Explore the continuous susceptible–infected–recovered model and compare its predictions with the dice-based epidemic game.</p>
           <span class="go">Open simulator →</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ============ RIDDLES & TRICKS ============ -->
+    <section class="section" id="riddles" aria-labelledby="riddles-title">
+      <div class="course">Puzzles · Probability · Number Theory</div>
+      <h2 id="riddles-title">Riddles &amp; Tricks</h2>
+      <p>Classic puzzles and number tricks to play with first and explain afterward.</p>
+      <div class="grid three">
+        <a class="card" href="locker-problem.html">
+          <span class="glyph" aria-hidden="true">1, 4, 9, 16, …</span>
+          <h3>The Locker Problem</h3>
+          <p>Student k toggles every k-th locker. Watch which lockers end up open and discover why by counting divisors.</p>
+          <span class="go">Open explorer →</span>
+        </a>
+        <a class="card" href="monty-hall.html">
+          <span class="glyph" aria-hidden="true">P(win | switch) = 2/3</span>
+          <h3>The Monty Hall Problem</h3>
+          <p>Play the game or simulate thousands of rounds, with any number of doors, and compare staying with switching.</p>
+          <span class="go">Open explorer →</span>
+        </a>
+        <a class="card" href="divisibility-tricks.html">
+          <span class="glyph" aria-hidden="true">10 ≡ −1 (<span style="font-style:normal">mod</span> 11)</span>
+          <h3>Divisibility Tricks</h3>
+          <p>See why digit sums test divisibility by 3 and 9, and why alternating sums test divisibility by 11.</p>
+          <span class="go">Open explorer →</span>
         </a>
       </div>
     </section>
