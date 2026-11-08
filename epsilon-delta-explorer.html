@@ -80,8 +80,11 @@
     </div>
 
     <h2>Show</h2>
-    <label class="tog"><input type="checkbox" id="tColor" checked> Color the graph inside the δ-window</label>
-    <label class="tog"><input type="checkbox" id="tCE" checked> Counterexample point</label>
+    <label class="tog"><input type="checkbox" id="tGraph"> Graph of f</label>
+    <label class="tog"><input type="checkbox" id="tEps"> ε-band</label>
+    <label class="tog"><input type="checkbox" id="tDel"> δ-window</label>
+    <label class="tog"><input type="checkbox" id="tColor"> Color the graph inside the δ-window</label>
+    <label class="tog"><input type="checkbox" id="tCE"> Counterexample point</label>
     <label class="tog"><input type="checkbox" id="tMax"> Largest working δ (dashed)</label>
 
     <div class="status" id="status"></div>
@@ -220,14 +223,15 @@ function circle(ctx,x,y,r,fill,stroke,lw=2){
   if (stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke(); }
 }
 // Labels for a−δ, a, a+δ in the top margin, and L−ε, L, L+ε in the right margin.
-function marginLabels(fr){
+function marginLabels(fr, showE, showD){
   const {ctx,PL,PR,PT,PB,X,Y} = fr, F = S.F;
   ctx.font = "600 16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif";
   ctx.textAlign = "center"; ctx.textBaseline = "bottom";
   const xa = X(F.a), xl = X(F.a-S.del), xr = X(F.a+S.del), ty = PT-10;
   ctx.fillStyle = getCss("--del");
   const inX = px => px >= PL-4 && px <= PR+4;
-  if (xa - xl >= 46){
+  if (!showD) ctx.fillText("a", xa, ty);
+  else if (xa - xl >= 46){
     if (inX(xl)) ctx.fillText("a − δ", xl, ty);
     ctx.fillText("a", xa, ty);
     if (inX(xr)) ctx.fillText("a + δ", xr, ty);
@@ -236,7 +240,8 @@ function marginLabels(fr){
   ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillStyle = getCss("--eps");
   const yL = Y(S.L), yt = Y(S.L+S.eps), yb = Y(S.L-S.eps), lx = PR+10;
   const inY = py => py >= PT-4 && py <= PB+4;
-  if (yb - yL >= 22){
+  if (!showE){ if (inY(yL)) ctx.fillText("L", lx, yL); }
+  else if (yb - yL >= 22){
     if (inY(yt)) ctx.fillText("L + ε", lx, yt);
     if (inY(yL)) ctx.fillText("L", lx, yL);
     if (inY(yb)) ctx.fillText("L − ε", lx, yb);
@@ -258,21 +263,29 @@ function draw(){
 
   ctx.save(); ctx.beginPath(); ctx.rect(PL,PT,PR-PL,PB-PT); ctx.clip();
 
+  const showG = $("tGraph").checked, showE = $("tEps").checked, showD = $("tDel").checked;
   // ε-band and δ-window
-  ctx.fillStyle = "rgba(194,65,12,0.12)";
-  ctx.fillRect(PL, Y(S.L+S.eps), PR-PL, Y(S.L-S.eps)-Y(S.L+S.eps));
-  ctx.fillStyle = "rgba(29,78,216,0.10)";
-  ctx.fillRect(X(F.a-S.del), PT, X(F.a+S.del)-X(F.a-S.del), PB-PT);
-  ctx.strokeStyle = works ? "rgba(21,128,61,0.9)" : "rgba(220,38,38,0.9)"; ctx.lineWidth = 2;
-  ctx.strokeRect(X(F.a-S.del), Y(S.L+S.eps), X(F.a+S.del)-X(F.a-S.del), Y(S.L-S.eps)-Y(S.L+S.eps));
+  if (showE){
+    ctx.fillStyle = "rgba(194,65,12,0.12)";
+    ctx.fillRect(PL, Y(S.L+S.eps), PR-PL, Y(S.L-S.eps)-Y(S.L+S.eps));
+  }
+  if (showD){
+    ctx.fillStyle = "rgba(29,78,216,0.10)";
+    ctx.fillRect(X(F.a-S.del), PT, X(F.a+S.del)-X(F.a-S.del), PB-PT);
+  }
+  if (showE && showD){
+    ctx.strokeStyle = works ? "rgba(21,128,61,0.9)" : "rgba(220,38,38,0.9)"; ctx.lineWidth = 2;
+    ctx.strokeRect(X(F.a-S.del), Y(S.L+S.eps), X(F.a+S.del)-X(F.a-S.del), Y(S.L-S.eps)-Y(S.L+S.eps));
+  }
 
   // reference lines x = a, y = L, and band edges
   dashedV(ctx, X(F.a), PT, PB, "rgba(29,78,216,0.7)");
   dashedH(ctx, Y(S.L), PL, PR, "rgba(194,65,12,0.75)");
-  ctx.strokeStyle="rgba(194,65,12,0.45)"; ctx.lineWidth=1;
-  [S.L+S.eps, S.L-S.eps].forEach(y=>{ctx.beginPath();ctx.moveTo(PL,Y(y));ctx.lineTo(PR,Y(y));ctx.stroke();});
-  ctx.strokeStyle="rgba(29,78,216,0.4)";
-  [F.a-S.del, F.a+S.del].forEach(x=>{ctx.beginPath();ctx.moveTo(X(x),PT);ctx.lineTo(X(x),PB);ctx.stroke();});
+  ctx.lineWidth=1;
+  if (showE){ ctx.strokeStyle="rgba(194,65,12,0.45)";
+    [S.L+S.eps, S.L-S.eps].forEach(y=>{ctx.beginPath();ctx.moveTo(PL,Y(y));ctx.lineTo(PR,Y(y));ctx.stroke();}); }
+  if (showD){ ctx.strokeStyle="rgba(29,78,216,0.4)";
+    [F.a-S.del, F.a+S.del].forEach(x=>{ctx.beginPath();ctx.moveTo(X(x),PT);ctx.lineTo(X(x),PB);ctx.stroke();}); }
 
   if ($("tMax").checked && dMax > F.d[0]){
     dashedV(ctx, X(F.a-dMax), PT, PB, getCss("--acc"), 2, [3,4]);
@@ -280,6 +293,7 @@ function draw(){
   }
 
   // graph of f
+  if (showG){
   const colorize = $("tColor").checked;
   const base = new Path2D(), good = new Path2D(), bad = new Path2D();
   const n = F.n, w = F.win;
@@ -303,6 +317,7 @@ function draw(){
 
   F.holes.forEach(([hx,hy]) => circle(ctx, X(hx), Y(hy), 5.5, "#fff", "#334155", 2));
   F.pts.forEach(([qx,qy]) => circle(ctx, X(qx), Y(qy), 5.5, "#334155", null));
+  }
 
   // counterexample
   if (!works && $("tCE").checked){
@@ -310,12 +325,14 @@ function draw(){
     circle(ctx, X(ce.x), Y(ce.v), 8, null, getCss("--bad"), 3);
   }
   ctx.restore();
-  marginLabels(fr);
-  updateStatus(fail, works, dMax, ce);
+  marginLabels(fr, showE, showD);
+  updateStatus(fail, works, dMax, ce, showE && showD);
 }
 
-function updateStatus(fail, works, dMax, ce){
+function updateStatus(fail, works, dMax, ce, ready){
   const F = S.F, first = F.d[0];
+  $("bestBtn").disabled = !!(fail && fail.d <= first);
+  if (!ready){ $("status").innerHTML = `<div class="small">Turn on the ε-band and the δ-window to check this δ.</div>`; return; }
   let h = "";
   if (works){
     h += `<div class="big ok">✓ This δ works</div>
@@ -373,7 +390,7 @@ $("bestBtn").addEventListener("click", () => {
   S.del = fail ? fail.d : S.F.del[1];
   syncControls(); draw();
 });
-["tColor","tCE","tMax"].forEach(id => $(id).addEventListener("change", draw));
+["tGraph","tEps","tDel","tColor","tCE","tMax"].forEach(id => $(id).addEventListener("change", draw));
 
 function resize(){
   const w = cv.parentElement.clientWidth - 20;

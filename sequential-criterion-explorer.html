@@ -94,9 +94,13 @@
     <div class="btns"><button id="bestBtn">Set δ to largest (numerical)</button></div>
 
     <h2>Show</h2>
-    <label class="tog"><input type="checkbox" id="tArcs" checked> Hops between terms</label>
-    <label class="tog"><input type="checkbox" id="tLabels" checked> <span>Term labels x<sub>n</sub></span></label>
-    <label class="tog"><input type="checkbox" id="tGuide" checked> Guide line for the newest term</label>
+    <label class="tog"><input type="checkbox" id="tGraph"> Graph of f</label>
+    <label class="tog"><input type="checkbox" id="tImg"> <span>Images f(x<sub>n</sub>)</span></label>
+    <label class="tog"><input type="checkbox" id="tEps"> ε-band</label>
+    <label class="tog"><input type="checkbox" id="tDel"> δ-neighborhood</label>
+    <label class="tog"><input type="checkbox" id="tArcs"> Hops between terms</label>
+    <label class="tog"><input type="checkbox" id="tLabels"> <span>Term labels x<sub>n</sub></span></label>
+    <label class="tog"><input type="checkbox" id="tGuide"> Guide line for the newest term</label>
 
     <div class="status" id="status"></div>
     <div class="note">Checks use finitely many sample points and the first 100,000 terms. They are numerical evidence, not a proof.</div>
@@ -248,6 +252,8 @@ function draw(){
   const inDel = n => Math.abs(S.xs[n]-F.c) < S.del;
   const inEps = n => Math.abs(S.fs[n]-S.L) < S.eps;
   const inX = x => x >= w.x0 && x <= w.x1;
+  const showG = $("tGraph").checked, showI = $("tImg").checked, showE = $("tEps").checked, showD = $("tDel").checked;
+  const NEUTRAL = "#334155";
 
   /* --- graph grid --- */
   const sx = niceStep(w.x1-w.x0, 8), sy = niceStep(w.y1-w.y0, 7);
@@ -269,16 +275,20 @@ function draw(){
 
   /* --- δ-window as a column through the graph and down to the number line --- */
   const xl = X(F.c-S.del), xr = X(F.c+S.del), xc = X(F.c);
-  ctx.fillStyle = "rgba(29,78,216,0.08)";
+  ctx.fillStyle = showD ? "rgba(29,78,216,0.08)" : "rgba(0,0,0,0)";
   const cl = Math.max(xl,PL), cw = Math.min(xr,PR)-cl, gap = PB+30;   // skip the tick-label row
   ctx.fillRect(cl, PT, cw, PB-PT); ctx.fillRect(cl, gap, cw, LY+10-gap);
 
   /* --- graph contents (clipped) --- */
   ctx.save(); ctx.beginPath(); ctx.rect(PL,PT,PR-PL,PB-PT); ctx.clip();
-  ctx.fillStyle = "rgba(194,65,12,0.12)";
-  ctx.fillRect(PL, Y(S.L+S.eps), PR-PL, Y(S.L-S.eps)-Y(S.L+S.eps));
-  ctx.strokeStyle = works ? "rgba(21,128,61,0.9)" : "rgba(220,38,38,0.9)"; ctx.lineWidth = 2;
-  ctx.strokeRect(xl, Y(S.L+S.eps), xr-xl, Y(S.L-S.eps)-Y(S.L+S.eps));
+  if (showE){
+    ctx.fillStyle = "rgba(194,65,12,0.12)";
+    ctx.fillRect(PL, Y(S.L+S.eps), PR-PL, Y(S.L-S.eps)-Y(S.L+S.eps));
+  }
+  if (showE && showD){
+    ctx.strokeStyle = works ? "rgba(21,128,61,0.9)" : "rgba(220,38,38,0.9)"; ctx.lineWidth = 2;
+    ctx.strokeRect(xl, Y(S.L+S.eps), xr-xl, Y(S.L-S.eps)-Y(S.L+S.eps));
+  }
   dashed(ctx, PL, Y(S.L), PR, Y(S.L), "rgba(194,65,12,0.75)");
 
   const path = new Path2D(); let px = null;
@@ -289,27 +299,29 @@ function draw(){
     if (px === null || F.breaks.some(b => px < b && x >= b)) path.moveTo(X(x),Y(y)); else path.lineTo(X(x),Y(y));
     px = x;
   }
-  ctx.lineJoin = "round"; ctx.strokeStyle = "#475569"; ctx.lineWidth = 2; ctx.stroke(path);
-  F.holes.forEach(([hx,hy]) => circle(ctx, X(hx), Y(hy), 5.5, "#fff", "#475569", 2));
-  F.pts.forEach(([qx,qy]) => circle(ctx, X(qx), Y(qy), 5.5, "#475569", null));
+  if (showG){
+    ctx.lineJoin = "round"; ctx.strokeStyle = "#475569"; ctx.lineWidth = 2; ctx.stroke(path);
+    F.holes.forEach(([hx,hy]) => circle(ctx, X(hx), Y(hy), 5.5, "#fff", "#475569", 2));
+    F.pts.forEach(([qx,qy]) => circle(ctx, X(qx), Y(qy), 5.5, "#475569", null));
+  }
 
   // f(x_n): rug on the left edge and points on the graph
-  for (let n=1;n<=nS;n++){
+  for (let n=1;n<=nS && showI;n++){
     const x = S.xs[n], y = S.fs[n];
     if (!isFinite(y)) continue;
-    const col = inEps(n) ? css("--good") : css("--bad"), latest = n === nS;
+    const col = !showE ? NEUTRAL : inEps(n) ? css("--good") : css("--bad"), latest = n === nS;
     ctx.strokeStyle = col; ctx.lineWidth = latest ? 3.5 : 2;
     ctx.beginPath(); ctx.moveTo(PL, Y(y)); ctx.lineTo(PL + (latest?16:10), Y(y)); ctx.stroke();
     if (inX(x)){
       if (latest) circle(ctx, X(x), Y(y), 7.5, col, "#fff", 2.5);
-      else circle(ctx, X(x), Y(y), 4.5, col + "cc", null);
+      else circle(ctx, X(x), Y(y), 4.5, col, null);
     }
   }
   ctx.restore();
 
   // guide line for the newest term: number line → graph → y-axis
   const xn = S.xs[nS], fn = S.fs[nS];
-  if ($("tGuide").checked && inX(xn) && isFinite(fn) && fn >= w.y0 && fn <= w.y1){
+  if ($("tGuide").checked && showI && inX(xn) && isFinite(fn) && fn >= w.y0 && fn <= w.y1){
     dashed(ctx, X(xn), LY-8, X(xn), PB+30, "rgba(15,23,42,0.5)", 1.4, [4,4]);
     dashed(ctx, X(xn), PB, X(xn), Y(fn), "rgba(15,23,42,0.5)", 1.4, [4,4]);
     dashed(ctx, X(xn), Y(fn), PL, Y(fn), "rgba(15,23,42,0.5)", 1.4, [4,4]);
@@ -318,7 +330,8 @@ function draw(){
   // ε labels in the right margin
   ctx.font = `600 16px ${FONT}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillStyle = css("--eps");
   const yL = Y(S.L), yt = Y(S.L+S.eps), yb = Y(S.L-S.eps), inY = p => p>=PT-4 && p<=PB+4;
-  if (yb - yL >= 22){
+  if (!showE){ if (inY(yL)) ctx.fillText("L", PR+10, yL); }
+  else if (yb - yL >= 22){
     if (inY(yt)) ctx.fillText("L + ε", PR+10, yt);
     if (inY(yL)) ctx.fillText("L", PR+10, yL);
     if (inY(yb)) ctx.fillText("L − ε", PR+10, yb);
@@ -335,10 +348,12 @@ function draw(){
   }
   // the δ-neighborhood (c − δ, c + δ) as a thick segment with open endpoints
   const sl = Math.max(xl, PL), sr = Math.min(xr, PR);
-  ctx.strokeStyle = css("--del"); ctx.lineWidth = 6; ctx.lineCap = "butt";
-  ctx.beginPath(); ctx.moveTo(sl, LY); ctx.lineTo(sr, LY); ctx.stroke();
-  if (xl >= PL) circle(ctx, xl, LY, 5, "#fff", css("--del"), 2.5);
-  if (xr <= PR) circle(ctx, xr, LY, 5, "#fff", css("--del"), 2.5);
+  if (showD){
+    ctx.strokeStyle = css("--del"); ctx.lineWidth = 6; ctx.lineCap = "butt";
+    ctx.beginPath(); ctx.moveTo(sl, LY); ctx.lineTo(sr, LY); ctx.stroke();
+    if (xl >= PL) circle(ctx, xl, LY, 5, "#fff", css("--del"), 2.5);
+    if (xr <= PR) circle(ctx, xr, LY, 5, "#fff", css("--del"), 2.5);
+  }
   // c itself (excluded: x_n ≠ c)
   ctx.strokeStyle = "#0f172a"; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(xc, LY-9); ctx.lineTo(xc, LY+9); ctx.stroke();
@@ -348,7 +363,8 @@ function draw(){
   // labels c − δ, c, c + δ below the line
   ctx.font = `600 16px ${FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = css("--del");
   const ly = LY + 30;
-  if (xc - xl >= 46){
+  if (!showD){ ctx.fillStyle = "#0f172a"; ctx.fillText("c", xc, ly); }
+  else if (xc - xl >= 46){
     if (xl >= PL-4) ctx.fillText("c − δ", xl, ly);
     ctx.fillStyle = "#0f172a"; ctx.fillText("c", xc, ly); ctx.fillStyle = css("--del");
     if (xr <= PR+4) ctx.fillText("c + δ", xr, ly);
@@ -368,36 +384,38 @@ function draw(){
   // the terms
   for (let n=1;n<=nS;n++){
     const x = S.xs[n]; if (!inX(x)) continue;
-    const col = inDel(n) ? css("--del") : "#94a3b8";
+    const col = !showD ? NEUTRAL : inDel(n) ? css("--del") : "#94a3b8";
     if (n === nS) circle(ctx, X(x), LY, 8, col, "#fff", 2.5);
     else circle(ctx, X(x), LY, 5, col, "#fff", 1.5);
   }
   // ring on x_N once it has appeared
-  if (N !== null && N <= nS && inX(S.xs[N])) circle(ctx, X(S.xs[N]), LY, 12, null, css("--acc"), 2.5);
+  if (showD && N !== null && N <= nS && inX(S.xs[N])) circle(ctx, X(S.xs[N]), LY, 12, null, css("--acc"), 2.5);
 
   // term labels x_n above the line, skipping any that would collide
   if ($("tLabels").checked){
     const placed = [];
     const want = [nS]; for (let n=1;n<nS;n++) want.push(n);
-    if (N !== null && N <= nS) want.splice(1, 0, N);
+    if (showD && N !== null && N <= nS) want.splice(1, 0, N);
     for (const n of want){
       const x = S.xs[n]; if (!inX(x)) continue;
       const p = X(x);
       if (placed.some(q => Math.abs(q-p) < 34)) continue;
       placed.push(p);
-      const col = n === N ? css("--acc") : n === nS ? "#0f172a" : "#64748b";
+      const col = (showD && n === N) ? css("--acc") : n === nS ? "#0f172a" : "#64748b";
       subLabel(ctx, "x", String(n), p, LY-18, 16, col);
     }
   }
 
-  updateStatus(N, works, fail);
+  updateStatus(N, works, fail, showD, showE);
 }
 
-function updateStatus(N, works, fail){
+function updateStatus(N, works, fail, showD, showE){
   const nS = S.nShown, F = S.F;
   const xn = S.xs[nS], inside = Math.abs(xn-F.c) < S.del;
   let h = "";
-  if (N === null)
+  if (!showD)
+    h += `<div class="small">Turn on the δ-neighborhood to look for N.</div>`;
+  else if (N === null)
     h += `<div class="big no">No N found</div><div class="small">The terms keep leaving (c − δ, c + δ) through n = 100,000.</div>`;
   else if (nS < N)
     h += `<div class="big wait">Not there yet</div>
@@ -405,15 +423,18 @@ function updateStatus(N, works, fail){
   else
     h += `<div class="big" style="color:var(--acc)">In the δ-neighborhood: N = ${fmtInt(N)}</div>
           <div class="small">Every term from x<sub>${fmtInt(N)}</sub> on lies in (c − δ, c + δ).</div>`;
-  if (works)
+  if (!(showD && showE)) {}
+  else if (works)
     h += `<div class="small ok" style="margin-top:8px"><b>✓ δ works for this ε</b>, so f(x<sub>n</sub>) lies in (L − ε, L + ε) for every n ≥ N.</div>`;
   else
     h += `<div class="small no" style="margin-top:8px"><b>✗ δ does not work for this ε</b>, so landing in (c − δ, c + δ) does not force f(x<sub>n</sub>) into (L − ε, L + ε).</div>`;
-  h += `<div class="readout">x<sub>${nS}</sub> = ${fmt(xn)} (${inside ? "inside" : "outside"} the δ-neighborhood)<br>
-        f(x<sub>${nS}</sub>) = ${fmt(S.fs[nS])}</div>`;
+  h += `<div class="readout">x<sub>${nS}</sub> = ${fmt(xn)}${showD ? ` (${inside ? "inside" : "outside"} the δ-neighborhood)` : ""}`
+     + (showI() ? `<br>f(x<sub>${nS}</sub>) = ${fmt(S.fs[nS])}` : "") + `</div>`;
   $("status").innerHTML = h;
   $("bestBtn").disabled = !!(fail && fail.d <= F.d[0]);
 }
+
+const showI = () => $("tImg").checked;
 
 /* ---------- Controls ---------- */
 function setRange(id, min, max, step, val){ const r=$(id); r.min=min; r.max=max; r.step=step; r.value=val; }
@@ -479,7 +500,7 @@ $("bestBtn").addEventListener("click", () => {
   S.del = fail ? fail.d : S.F.del[1];
   syncControls(); draw();
 });
-["tArcs","tLabels","tGuide"].forEach(id => $(id).addEventListener("change", draw));
+["tGraph","tImg","tEps","tDel","tArcs","tLabels","tGuide"].forEach(id => $(id).addEventListener("change", draw));
 
 function resize(){
   const w = cv.parentElement.clientWidth - 20;
