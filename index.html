@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111b2b">
-  <meta name="description" content="Interactive mathematical visualizations for teaching and exploration: proofs and modular arithmetic, sequences and real analysis, oscillators and differential equations, and the Diseases & Dice epidemic game.">
+  <meta name="description" content="Interactive mathematical visualizations for teaching and exploration: proofs and modular arithmetic, sequences, limits, and real analysis, oscillators and differential equations, and the Diseases & Dice epidemic game.">
   <title>Mathematical Visualizations</title>
   <style>
     :root { color-scheme: dark; --bg:#101827; --card:#1b2940; --ink:#f5f6f8; --muted:#bac9dc; --line:#344761; --accent:#f1c777; }
@@ -57,6 +57,7 @@
     <nav class="topics" aria-label="Topics">
       <a href="#proofs">Modular Arithmetic</a>
       <a href="#sequences">Sequences</a>
+      <a href="#limits">Limits of Functions</a>
       <a href="#oscillators">Oscillators</a>
       <a href="#diseases">Diseases &amp; Dice</a>
     </nav>
@@ -116,6 +117,27 @@
           <span class="glyph" aria-hidden="true">|a<sub>m</sub> − a<sub>n</sub>| &lt; ε</span>
           <h3>Cauchy Sequences</h3>
           <p>See every pair (m, n) at once and look for an N beyond which all terms are within ε of each other.</p>
+          <span class="go">Open explorer →</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ============ LIMITS OF FUNCTIONS ============ -->
+    <section class="section" id="limits" aria-labelledby="limits-title">
+      <div class="course">Math 305 · Real Analysis</div>
+      <h2 id="limits-title">Limits of Functions</h2>
+      <p>See how ε and δ work together in the definition of a limit, and connect function limits back to sequences. These tools check finitely many points, so they motivate proofs rather than replace them.</p>
+      <div class="grid three">
+        <a class="card" href="epsilon-delta-explorer.html">
+          <span class="glyph" aria-hidden="true">0 &lt; |x − a| &lt; δ</span>
+          <h3>Epsilon–Delta Limits</h3>
+          <p>Choose ε, then search for a δ that keeps the graph inside the ε-band, or find a counterexample when no δ works.</p>
+          <span class="go">Open explorer →</span>
+        </a>
+        <a class="card" href="sequential-criterion-explorer.html">
+          <span class="glyph" aria-hidden="true">x<sub>n</sub> → a ⇒ f(x<sub>n</sub>) → L</span>
+          <h3>Sequential Criterion</h3>
+          <p>Send a sequence toward a and watch whether its image f(x<sub>n</sub>) eventually lands in the ε-neighborhood of L.</p>
           <span class="go">Open explorer →</span>
         </a>
       </div>
