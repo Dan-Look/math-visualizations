@@ -25,7 +25,8 @@
   .ctl{margin:12px 0}
   .ctl .row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
   .ctl .name{font-weight:600;display:flex;align-items:center;gap:8px}
-  .sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+  .swc{width:18px;height:18px;margin:0;cursor:pointer}
+  label.name{cursor:pointer}
   input[type=number]{width:100px;font-size:16px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:8px;
                      text-align:right;font-variant-numeric:tabular-nums}
   input[type=range]{width:100%;accent-color:var(--ink)}
@@ -60,17 +61,17 @@
 
     <h2>Parameters</h2>
     <div class="ctl">
-      <div class="row"><span class="name"><span class="sw" style="background:#0f172a"></span>Proposed limit L</span>
+      <div class="row"><label class="name"><input type="checkbox" class="swc" id="tL" style="accent-color:#0f172a">Proposed limit L</label>
         <input type="number" id="Lnum" step="any"></div>
       <input type="range" id="Lrng">
     </div>
     <div class="ctl">
-      <div class="row"><span class="name"><span class="sw" style="background:var(--eps)"></span>ε</span>
+      <div class="row"><label class="name"><input type="checkbox" class="swc" id="tEps" style="accent-color:var(--eps)">ε</label>
         <input type="number" id="epsNum" step="any" min="0"></div>
       <input type="range" id="epsRng">
     </div>
     <div class="ctl">
-      <div class="row"><span class="name"><span class="sw" style="background:var(--del)"></span>δ</span>
+      <div class="row"><label class="name"><input type="checkbox" class="swc" id="tDel" style="accent-color:var(--del)">δ</label>
         <input type="number" id="delNum" step="any" min="0"></div>
       <input type="range" id="delRng">
     </div>
@@ -81,8 +82,6 @@
 
     <h2>Show</h2>
     <label class="tog"><input type="checkbox" id="tGraph"> Graph of f</label>
-    <label class="tog"><input type="checkbox" id="tEps"> ε-band</label>
-    <label class="tog"><input type="checkbox" id="tDel"> δ-window</label>
     <label class="tog"><input type="checkbox" id="tColor"> Color the graph inside the δ-window</label>
     <label class="tog"><input type="checkbox" id="tCE"> Counterexample point</label>
     <label class="tog"><input type="checkbox" id="tMax"> Largest working δ (dashed)</label>
@@ -223,14 +222,14 @@ function circle(ctx,x,y,r,fill,stroke,lw=2){
   if (stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke(); }
 }
 // Labels for a−δ, a, a+δ in the top margin, and L−ε, L, L+ε in the right margin.
-function marginLabels(fr, showE, showD){
+function marginLabels(fr, showE, showD, showL){
   const {ctx,PL,PR,PT,PB,X,Y} = fr, F = S.F;
   ctx.font = "600 16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif";
   ctx.textAlign = "center"; ctx.textBaseline = "bottom";
   const xa = X(F.a), xl = X(F.a-S.del), xr = X(F.a+S.del), ty = PT-10;
   ctx.fillStyle = getCss("--del");
   const inX = px => px >= PL-4 && px <= PR+4;
-  if (!showD) ctx.fillText("a", xa, ty);
+  if (!showD) {}
   else if (xa - xl >= 46){
     if (inX(xl)) ctx.fillText("a − δ", xl, ty);
     ctx.fillText("a", xa, ty);
@@ -240,7 +239,7 @@ function marginLabels(fr, showE, showD){
   ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillStyle = getCss("--eps");
   const yL = Y(S.L), yt = Y(S.L+S.eps), yb = Y(S.L-S.eps), lx = PR+10;
   const inY = py => py >= PT-4 && py <= PB+4;
-  if (!showE){ if (inY(yL)) ctx.fillText("L", lx, yL); }
+  if (!showE){ if (showL && inY(yL)) ctx.fillText("L", lx, yL); }
   else if (yb - yL >= 22){
     if (inY(yt)) ctx.fillText("L + ε", lx, yt);
     if (inY(yL)) ctx.fillText("L", lx, yL);
@@ -263,7 +262,7 @@ function draw(){
 
   ctx.save(); ctx.beginPath(); ctx.rect(PL,PT,PR-PL,PB-PT); ctx.clip();
 
-  const showG = $("tGraph").checked, showE = $("tEps").checked, showD = $("tDel").checked;
+  const showL = $("tL").checked, showG = $("tGraph").checked, showE = $("tEps").checked, showD = $("tDel").checked;
   // ε-band and δ-window
   if (showE){
     ctx.fillStyle = "rgba(194,65,12,0.12)";
@@ -279,8 +278,8 @@ function draw(){
   }
 
   // reference lines x = a, y = L, and band edges
-  dashedV(ctx, X(F.a), PT, PB, "rgba(29,78,216,0.7)");
-  dashedH(ctx, Y(S.L), PL, PR, "rgba(194,65,12,0.75)");
+  if (showD) dashedV(ctx, X(F.a), PT, PB, "rgba(29,78,216,0.7)");
+  if (showL || showE) dashedH(ctx, Y(S.L), PL, PR, "rgba(194,65,12,0.75)");
   ctx.lineWidth=1;
   if (showE){ ctx.strokeStyle="rgba(194,65,12,0.45)";
     [S.L+S.eps, S.L-S.eps].forEach(y=>{ctx.beginPath();ctx.moveTo(PL,Y(y));ctx.lineTo(PR,Y(y));ctx.stroke();}); }
@@ -325,7 +324,7 @@ function draw(){
     circle(ctx, X(ce.x), Y(ce.v), 8, null, getCss("--bad"), 3);
   }
   ctx.restore();
-  marginLabels(fr, showE, showD);
+  marginLabels(fr, showE, showD, showL);
   updateStatus(fail, works, dMax, ce, showE && showD);
 }
 
@@ -390,7 +389,7 @@ $("bestBtn").addEventListener("click", () => {
   S.del = fail ? fail.d : S.F.del[1];
   syncControls(); draw();
 });
-["tGraph","tEps","tDel","tColor","tCE","tMax"].forEach(id => $(id).addEventListener("change", draw));
+["tL","tGraph","tEps","tDel","tColor","tCE","tMax"].forEach(id => $(id).addEventListener("change", draw));
 
 function resize(){
   const w = cv.parentElement.clientWidth - 20;
