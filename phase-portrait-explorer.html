@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase Portrait Explorer: from trajectories to x(t) and y(t)</title>
+<style>
+  :root{
+    --x:#2563eb; --y:#ea580c; --traj:#6d28d9; --ink:#1f2937; --muted:#6b7280;
+    --line:#e5e7eb; --bg:#f8fafc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+  .app{display:flex;gap:16px;padding:12px;align-items:flex-start}
+  .controls{width:320px;flex:0 0 320px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:15px;
+            max-height:calc(100vh - 24px);overflow-y:auto;position:sticky;top:12px}
+  .stage{flex:1;display:flex;justify-content:center;min-width:0}
+  canvas{background:#fff;border:1px solid var(--line);border-radius:12px;display:block}
+  h1{font-size:18px;margin:0 0 10px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:16px 0 6px}
+  .system{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif;font-size:20px;line-height:1.55;background:#f3f4f6;border-radius:8px;padding:6px 12px}
+  .row{display:grid;grid-template-columns:30px 1fr 66px;align-items:center;gap:8px;margin:5px 0}
+  .row label{font-family:"Cambria Math","Times New Roman",serif;font-style:italic;font-size:18px}
+  .row label.plain{font-family:inherit;font-style:normal;font-size:13px;color:var(--muted)}
+  input[type=range]{width:100%;accent-color:var(--traj)}
+  input[type=number]{width:66px;padding:3px 5px;font-size:14px;border:1px solid #d1d5db;border-radius:6px}
+  select{width:100%;padding:6px;font-size:14px;border-radius:6px;border:1px solid #d1d5db;background:#fff}
+  .seg{display:flex;border:1px solid #d1d5db;border-radius:8px;overflow:hidden}
+  .seg button{flex:1;border:0;background:#fff;padding:8px 0;font-size:16px;cursor:pointer;border-right:1px solid #d1d5db;font-family:"Cambria Math","Times New Roman",serif}
+  .seg button:last-child{border-right:0}
+  .seg button.on[data-c="x"]{background:var(--x);color:#fff}
+  .seg button.on[data-c="y"]{background:var(--y);color:#fff}
+  .seg button.on[data-c="both"]{background:var(--ink);color:#fff}
+  .btns{display:flex;gap:6px}
+  .btns button{flex:1;padding:8px 0;font-size:14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer}
+  .btns button.primary{background:var(--traj);border-color:var(--traj);color:#fff}
+  .btns button:hover{filter:brightness(.96)}
+  .checks label{display:flex;align-items:center;gap:8px;margin:5px 0;cursor:pointer}
+  .checks input{width:16px;height:16px;accent-color:var(--traj)}
+  .hint{font-size:13px;color:var(--muted);margin:2px 0 0}
+  #info{margin-top:10px;font-size:15px;background:#f3f4f6;border-radius:8px;padding:8px 10px;line-height:1.5}
+  #info[hidden]{display:none}
+  @media (max-width: 960px){ .app{flex-direction:column} .controls{width:100%;flex:none;position:static;max-height:none} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="controls">
+    <h1>Phase Portrait Explorer</h1>
+    <div class="system" id="sys"></div>
+
+    <h2>Matrix A</h2>
+    <select id="preset">
+      <option value="spiralSink">Spiral sink</option>
+      <option value="center">Center</option>
+      <option value="spiralSource">Spiral source</option>
+      <option value="saddle">Saddle</option>
+      <option value="stableNode">Nodal sink</option>
+      <option value="unstableNode">Nodal source</option>
+      <option value="degenerate">Repeated eigenvalue (one eigenvector)</option>
+      <option value="star">Star (proper node)</option>
+      <option value="zeroEig">Zero eigenvalue</option>
+      <option value="custom">Custom</option>
+    </select>
+    <div class="row"><label for="a_r">a</label><input type="range" id="a_r" min="-5" max="5" step="0.1"><input type="number" id="a_n" step="0.1"></div>
+    <div class="row"><label for="b_r">b</label><input type="range" id="b_r" min="-5" max="5" step="0.1"><input type="number" id="b_n" step="0.1"></div>
+    <div class="row"><label for="c_r">c</label><input type="range" id="c_r" min="-5" max="5" step="0.1"><input type="number" id="c_n" step="0.1"></div>
+    <div class="row"><label for="d_r">d</label><input type="range" id="d_r" min="-5" max="5" step="0.1"><input type="number" id="d_n" step="0.1"></div>
+
+    <h2>Start point</h2>
+    <div class="row"><label for="x0_r">x₀</label><input type="range" id="x0_r" min="-10" max="10" step="0.1"><input type="number" id="x0_n" step="0.1"></div>
+    <div class="row"><label for="y0_r">y₀</label><input type="range" id="y0_r" min="-10" max="10" step="0.1"><input type="number" id="y0_n" step="0.1"></div>
+    <p class="hint">Or click anywhere in the phase plane.</p>
+
+    <h2>Follow</h2>
+    <div class="seg" id="comp">
+      <button data-c="x" class="on"><i>x</i>(<i>t</i>)</button>
+      <button data-c="y"><i>y</i>(<i>t</i>)</button>
+      <button data-c="both">both</button>
+    </div>
+
+    <h2>Time</h2>
+    <div class="btns">
+      <button id="play" class="primary">▶ Play</button>
+      <button id="step">Step</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div class="row"><label for="t_r">t</label><input type="range" id="t_r" min="0" max="10" step="0.01"><input type="number" id="t_n" step="0.1" min="0"></div>
+    <div class="row"><label class="plain" for="T_r">end</label><input type="range" id="T_r" min="2" max="30" step="1"><input type="number" id="T_n" step="1" min="1"></div>
+    <div class="row"><label class="plain" for="sp_r">speed</label><input type="range" id="sp_r" min="0.2" max="4" step="0.1"><input type="number" id="sp_n" step="0.1" min="0.1"></div>
+
+    <h2>Window</h2>
+    <select id="win">
+      <option value="2">−2 ≤ x, y ≤ 2</option>
+      <option value="5" selected>−5 ≤ x, y ≤ 5</option>
+      <option value="10">−10 ≤ x, y ≤ 10</option>
+    </select>
+
+    <h2>Show</h2>
+    <div class="checks">
+      <label><input type="checkbox" id="cbField" checked> Direction field</label>
+      <label><input type="checkbox" id="cbPath" checked> Whole trajectory (faint)</label>
+      <label><input type="checkbox" id="cbTrace" checked> Trace the time graphs</label>
+      <label><input type="checkbox" id="cbStd" checked> <span><i>x</i>(<i>t</i>) in usual orientation</span></label>
+      <label><input type="checkbox" id="cbNull"> Nullclines and turning points</label>
+      <label><input type="checkbox" id="cbEig"> Eigenvector lines</label>
+      <label><input type="checkbox" id="cbInfo"> Eigenvalues and type</label>
+    </div>
+    <div id="info" hidden></div>
+  </div>
+
+  <div class="stage"><canvas id="cv"></canvas></div>
+</div>
+
+<script>
+// ---------- Layout (logical canvas coordinates) ----------
+const P = 440, Q = 360;           // phase-plane size, time-axis length
+const L0 = 70, T0 = 44, GAPX = 54, GAPY = 64;
+const W = L0 + P + GAPX + Q + 24;
+const H = T0 + P + GAPY + Q + 40;
+const rPh  = {x: L0,            y: T0,            w: P, h: P};   // phase plane
+const rY   = {x: L0 + P + GAPX, y: T0,            w: Q, h: P};   // y(t): t right, y up (shares y with phase)
+const rX   = {x: L0,            y: T0 + P + GAPY, w: P, h: Q};   // x(t): x right, t DOWN (shares x with phase)
+const rXs  = {x: L0 + P + GAPX, y: T0 + P + GAPY, w: Q, h: Q};   // x(t): usual orientation
+
+const COL = {x:'#2563eb', y:'#ea580c', traj:'#6d28d9', ink:'#1f2937', grid:'#eef0f3', axis:'#9ca3af', field:'#c4c9d2', eig:'#059669'};
+
+// ---------- State ----------
+const S = {a:-0.25, b:2, c:-2, d:-0.25, x0:4, y0:0, L:5, T:10, t:0, speed:1, comp:'x', playing:false};
+const N = 1500;                    // samples on [0, T]
+let samp = {t:[], x:[], y:[]};
+let turnX = [], turnY = [];        // turning points (x'=0, y'=0) along the path
+
+const PRESETS = {
+  spiralSink:   {A:[-0.25, 2, -2, -0.25], s:[4, 0]},
+  center:       {A:[0, 2, -1, 0],       s:[3, 0]},
+  spiralSource: {A:[0.2, 1.5, -1.5, 0.2], s:[0.5, 0]},
+  saddle:       {A:[0.5, 1.5, 1.5, 0.5], s:[4, -3.5]},
+  stableNode:   {A:[-2, 1, 1, -2],      s:[4, -1]},
+  unstableNode: {A:[1, 0.5, 0.5, 1],    s:[0.3, -0.5]},
+  degenerate:   {A:[-1, 1, 0, -1],      s:[-1, 4]},
+  star:         {A:[-1, 0, 0, -1],      s:[4, 3]},
+  zeroEig:      {A:[-1, 1, 1, -1],      s:[4, -1]}
+};
+
+// ---------- Exact solution: x(t) = e^{At} x0 ----------
+// With s = tr/2 and M = A - sI, M^2 = (s^2 - det) I, so e^{At} = e^{st}(C(t) I + S(t) M).
+function solve(t){
+  const {a,b,c,d,x0,y0} = S;
+  const s = (a + d)/2, det = a*d - b*c, del = s*s - det;
+  const eps = 1e-12;
+  let C, Sv;
+  if (del > eps){ const r = Math.sqrt(del); C = Math.cosh(r*t); Sv = Math.sinh(r*t)/r; }
+  else if (del < -eps){ const w = Math.sqrt(-del); C = Math.cos(w*t); Sv = Math.sin(w*t)/w; }
+  else { C = 1; Sv = t; }
+  const e = Math.exp(s*t);
+  return [ e*((C + Sv*(a - s))*x0 + Sv*b*y0),
+           e*(Sv*c*x0 + (C + Sv*(d - s))*y0) ];
+}
+
+function recompute(){
+  samp = {t:new Float64Array(N+1), x:new Float64Array(N+1), y:new Float64Array(N+1)};
+  for (let i = 0; i <= N; i++){
+    const t = S.T*i/N, p = solve(t);
+    samp.t[i] = t; samp.x[i] = p[0]; samp.y[i] = p[1];
+  }
+  // turning points: sign changes of x' = ax+by and y' = cx+dy along the path
+  turnX = []; turnY = [];
+  if (S.x0 !== 0 || S.y0 !== 0){
+    const fx = i => S.a*samp.x[i] + S.b*samp.y[i];
+    const fy = i => S.c*samp.x[i] + S.d*samp.y[i];
+    for (let i = 0; i < N; i++){
+      for (const [f, arr] of [[fx, turnX], [fy, turnY]]){
+        const u = f(i), v = f(i+1);
+        if (u !== 0 && u*v < 0){
+          const ts = samp.t[i] + (samp.t[i+1] - samp.t[i]) * u/(u - v);
+          const p = solve(ts);
+          arr.push({t: ts, x: p[0], y: p[1]});
+        }
+      }
+    }
+  }
+}
+
+// ---------- Coordinate maps ----------
+const phX = x => rPh.x + (x + S.L)/(2*S.L)*rPh.w;
+const phY = y => rPh.y + (S.L - y)/(2*S.L)*rPh.h;
+const tR  = t => rY.x + t/S.T*rY.w;          // time to the right (y panel)
+const tD  = t => rX.y + t/S.T*rX.h;          // time downward (x panel)
+const tRs = t => rXs.x + t/S.T*rXs.w;        // time to the right (usual x panel)
+const xUp = x => rXs.y + (S.L - x)/(2*S.L)*rXs.h;
+const clampV = v => Math.max(-50*S.L, Math.min(50*S.L, v)); // keep pixel coords finite; drawing is clipped
+
+// ---------- Canvas ----------
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let scale = 1;
+function fit(){
+  const st = document.querySelector('.stage');
+  const availW = st.clientWidth;
+  const availH = window.innerWidth > 960 ? window.innerHeight - 26 : 10000;
+  const s = Math.max(0.3, Math.min(availW / W, availH / H));
+  cv.style.width = (W*s) + 'px'; cv.style.height = (H*s) + 'px';
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(W*s*dpr); cv.height = Math.round(H*s*dpr);
+  scale = s*dpr;
+  draw();
+}
+
+function tickStep(range){ return range <= 2 ? 1 : range <= 5 ? 1 : range <= 10 ? 2 : 5; }
+function tStep(T){ return T <= 10 ? 1 : T <= 20 ? 2 : 5; }
+const fmtTick = v => (Math.abs(v) < 1e-9 ? '0' : (v < 0 ? '−' + Math.abs(+v.toFixed(2)) : '' + +v.toFixed(2)));
+
+function clip(r, fn){ ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip(); fn(); ctx.restore(); }
+function line(x1,y1,x2,y2){ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+function dot(x,y,r,fill,stroke){ ctx.beginPath(); ctx.arc(x,y,r,0,2*Math.PI); if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke();} }
+function ring(x,y,r,col){ ctx.beginPath(); ctx.arc(x,y,r,0,2*Math.PI); ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.stroke(); }
+function arrowHead(x,y,ang,size,col){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang); ctx.fillStyle=col;
+  ctx.beginPath(); ctx.moveTo(size,0); ctx.lineTo(-size*0.8, size*0.6); ctx.lineTo(-size*0.8,-size*0.6); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function axisName(txt, x, y, align, col){
+  ctx.font = 'italic 21px "Cambria Math","Times New Roman",serif'; ctx.fillStyle = col || COL.ink;
+  ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle'; ctx.fillText(txt, x, y);
+}
+function title(txt, x, y){
+  ctx.font = '600 16px system-ui,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = COL.ink;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(txt, x, y);
+}
+function tickFont(){ ctx.font = '15px system-ui,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = '#4b5563'; }
+
+// Draw a polyline in some panel, from sample 0 up to time tEnd (with exact endpoint).
+function pathTo(mapPt, tEnd){
+  const k = Math.min(N, Math.floor(tEnd/S.T*N));
+  ctx.beginPath();
+  for (let i = 0; i <= k; i++){
+    const [px,py] = mapPt(samp.t[i], clampV(samp.x[i]), clampV(samp.y[i]));
+    if (i === 0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  if (tEnd > samp.t[k]){ const p = solve(tEnd); const [px,py] = mapPt(tEnd, clampV(p[0]), clampV(p[1])); ctx.lineTo(px,py); }
+  ctx.stroke();
+}
+
+function frame(r, dim){
+  ctx.fillStyle = dim ? '#f7f8fa' : '#ffffff'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 1; ctx.strokeRect(r.x, r.y, r.w, r.h);
+}
+
+// ---------- Main draw ----------
+function draw(){
+  ctx.setTransform(scale,0,0,scale,0,0);
+  ctx.clearRect(0,0,W,H);
+  const L = S.L, st = tickStep(L), ts = tStep(S.T);
+  const showX = S.comp !== 'y', showY = S.comp !== 'x';
+  const cur = solve(S.t);
+
+  // ===== frames & grids =====
+  frame(rPh, false); frame(rY, !showY); frame(rX, !showX); frame(rXs, !(showX && cbStd.checked));
+
+  ctx.lineWidth = 1;
+  // phase grid
+  ctx.strokeStyle = COL.grid;
+  for (let v = -L; v <= L + 1e-9; v += st){ line(phX(v), rPh.y, phX(v), rPh.y+rPh.h); line(rPh.x, phY(v), rPh.x+rPh.w, phY(v)); }
+  // y-panel grid
+  for (let v = -L; v <= L + 1e-9; v += st) line(rY.x, phY(v), rY.x+rY.w, phY(v));
+  for (let t = 0; t <= S.T + 1e-9; t += ts) line(tR(t), rY.y, tR(t), rY.y+rY.h);
+  // x-panel (sideways) grid
+  for (let v = -L; v <= L + 1e-9; v += st) line(phX(v), rX.y, phX(v), rX.y+rX.h);
+  for (let t = 0; t <= S.T + 1e-9; t += ts) line(rX.x, tD(t), rX.x+rX.w, tD(t));
+  // usual x-panel grid
+  for (let v = -L; v <= L + 1e-9; v += st) line(rXs.x, xUp(v), rXs.x+rXs.w, xUp(v));
+  for (let t = 0; t <= S.T + 1e-9; t += ts) line(tRs(t), rXs.y, tRs(t), rXs.y+rXs.h);
+
+  // axes
+  ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5;
+  line(rPh.x, phY(0), rPh.x+rPh.w, phY(0)); line(phX(0), rPh.y, phX(0), rPh.y+rPh.h);
+  line(rY.x, phY(0), rY.x+rY.w, phY(0));
+  line(phX(0), rX.y, phX(0), rX.y+rX.h);
+  line(rXs.x, xUp(0), rXs.x+rXs.w, xUp(0));
+
+  // tick labels
+  tickFont();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let v = -L; v <= L + 1e-9; v += st) ctx.fillText(fmtTick(v), phX(v), rPh.y+rPh.h+6);
+  for (let t = 0; t <= S.T + 1e-9; t += ts){ ctx.fillText(fmtTick(t), tR(t), rY.y+rY.h+6); ctx.fillText(fmtTick(t), tRs(t), rXs.y+rXs.h+6); }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let v = -L; v <= L + 1e-9; v += st){ ctx.fillText(fmtTick(v), rPh.x-8, phY(v)); ctx.fillText(fmtTick(v), rXs.x-8, xUp(v)); }
+  for (let t = 0; t <= S.T + 1e-9; t += ts) ctx.fillText(fmtTick(t), rX.x-8, tD(t));
+
+  // titles & axis names
+  title('Phase plane', rPh.x, rPh.y-14);
+  title('y(t)', rY.x, rY.y-14);
+  title('x(t)   (time runs down)', rX.x, rX.y-14);
+  title('x(t)   (usual orientation)', rXs.x, rXs.y-14);
+  axisName('x', rPh.x+rPh.w-14, phY(0)-14, 'center');
+  axisName('y', phX(0)+14, rPh.y+14, 'center');
+  axisName('t', rY.x+rY.w-12, phY(0)-14, 'center');
+  axisName('y', rY.x+12, rY.y+14, 'center', COL.y);
+  axisName('x', rX.x+rX.w-14, rX.y+16, 'center', COL.x);
+  axisName('t', phX(0)+14, rX.y+rX.h-16, 'center');
+  axisName('t', rXs.x+rXs.w-12, xUp(0)-14, 'center');
+  axisName('x', rXs.x+12, rXs.y+14, 'center', COL.x);
+
+  // ===== phase plane contents =====
+  clip(rPh, () => {
+    // direction field
+    if (cbField.checked){
+      const n = 15, cell = rPh.w/n;
+      ctx.strokeStyle = COL.field; ctx.lineWidth = 1.4;
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++){
+        const px = rPh.x + (i+0.5)*cell, py = rPh.y + (j+0.5)*cell;
+        const x = -L + (i+0.5)*2*L/n, y = L - (j+0.5)*2*L/n;
+        const vx = S.a*x + S.b*y, vy = S.c*x + S.d*y;
+        const m = Math.hypot(vx, vy); if (m < 1e-12) continue;
+        const len = 0.36*cell, ux = vx/m, uy = -vy/m;
+        line(px - ux*len, py - uy*len, px + ux*len, py + uy*len);
+        arrowHead(px + ux*len, py + uy*len, Math.atan2(uy, ux), 4.5, COL.field);
+      }
+    }
+    // eigenvector lines
+    if (cbEig.checked){
+      const ev = eigen();
+      if (ev.real){
+        ctx.strokeStyle = COL.eig; ctx.lineWidth = 2; ctx.setLineDash([10,6]);
+        for (const v of ev.vecs){ const k = 3*L/Math.hypot(v[0], v[1]); line(phX(-k*v[0]), phY(-k*v[1]), phX(k*v[0]), phY(k*v[1])); }
+        ctx.setLineDash([]);
+      }
+    }
+    // nullclines
+    if (cbNull.checked){
+      ctx.lineWidth = 2; ctx.setLineDash([3,5]);
+      const nl = (p, q, col) => { // line p x + q y = 0
+        if (Math.abs(p) < 1e-12 && Math.abs(q) < 1e-12) return;
+        const dx = -q, dy = p, k = 3*L/Math.hypot(dx, dy);
+        ctx.strokeStyle = col; line(phX(-k*dx), phY(-k*dy), phX(k*dx), phY(k*dy));
+      };
+      nl(S.a, S.b, COL.x); nl(S.c, S.d, COL.y);
+      ctx.setLineDash([]);
+    }
+    // whole trajectory (faint) with direction arrows
+    if (cbPath.checked){
+      ctx.strokeStyle = 'rgba(109,40,217,0.25)'; ctx.lineWidth = 2.5;
+      pathTo((t,x,y) => [phX(x), phY(y)], S.T);
+      for (let q = 1; q <= 5; q++){
+        const i = Math.round(q*N/6);
+        const x = samp.x[i], y = samp.y[i];
+        if (Math.abs(x) > L || Math.abs(y) > L) continue;
+        const vx = S.a*x + S.b*y, vy = S.c*x + S.d*y;
+        if (Math.hypot(vx, vy) < 1e-9) continue;
+        arrowHead(phX(x), phY(y), Math.atan2(-vy, vx), 8, 'rgba(109,40,217,0.45)');
+      }
+    }
+    // traced trajectory
+    ctx.strokeStyle = COL.traj; ctx.lineWidth = 3;
+    pathTo((t,x,y) => [phX(x), phY(y)], S.t);
+    // turning points on the phase path
+    if (cbNull.checked){
+      if (showX) for (const p of turnX) ring(phX(p.x), phY(p.y), 6, COL.x);
+      if (showY) for (const p of turnY) ring(phX(p.x), phY(p.y), 6, COL.y);
+    }
+    // equilibrium & start
+    dot(phX(0), phY(0), 4.5, COL.ink);
+    ring(phX(S.x0), phY(S.y0), 6, COL.traj);
+  });
+
+  // ===== shadows (projection lines) =====
+  const cx = phX(clampV(cur[0])), cy = phY(clampV(cur[1]));
+  const inX = Math.abs(cur[0]) <= L, inY = Math.abs(cur[1]) <= L;
+  ctx.lineWidth = 1.8; ctx.setLineDash([6,5]);
+  if (showX && inX){
+    ctx.strokeStyle = 'rgba(37,99,235,0.7)';
+    line(cx, Math.max(rPh.y, Math.min(rPh.y+rPh.h, cy)), cx, tD(S.t));
+  }
+  if (showY && inY){
+    ctx.strokeStyle = 'rgba(234,88,12,0.7)';
+    line(Math.max(rPh.x, Math.min(rPh.x+rPh.w, cx)), cy, tR(S.t), cy);
+  }
+  ctx.setLineDash([]);
+
+  // ===== y(t) panel =====
+  if (showY) clip(rY, () => {
+    if (cbTrace.checked){ ctx.strokeStyle = COL.y; ctx.lineWidth = 3; pathTo((t,x,y) => [tR(t), phY(y)], S.t); }
+    if (cbNull.checked && cbTrace.checked) for (const p of turnY) if (p.t <= S.t) ring(tR(p.t), phY(p.y), 6, COL.y);
+    dot(tR(S.t), phY(clampV(cur[1])), 7, COL.y, '#fff');
+  });
+
+  // ===== x(t) sideways panel =====
+  if (showX) clip(rX, () => {
+    if (cbTrace.checked){ ctx.strokeStyle = COL.x; ctx.lineWidth = 3; pathTo((t,x,y) => [phX(x), tD(t)], S.t); }
+    if (cbNull.checked && cbTrace.checked) for (const p of turnX) if (p.t <= S.t) ring(phX(p.x), tD(p.t), 6, COL.x);
+    dot(phX(clampV(cur[0])), tD(S.t), 7, COL.x, '#fff');
+  });
+
+  // ===== x(t) usual orientation =====
+  if (showX && cbStd.checked) clip(rXs, () => {
+    if (cbTrace.checked){ ctx.strokeStyle = COL.x; ctx.lineWidth = 3; pathTo((t,x,y) => [tRs(t), xUp(x)], S.t); }
+    if (cbNull.checked && cbTrace.checked) for (const p of turnX) if (p.t <= S.t) ring(tRs(p.t), xUp(p.x), 6, COL.x);
+    dot(tRs(S.t), xUp(clampV(cur[0])), 7, COL.x, '#fff');
+  });
+
+  // ===== moving point and its shadows on the axes (drawn last, on top) =====
+  clip(rPh, () => {
+    if (showX && inX) dot(cx, phY(0), 6.5, COL.x, '#fff');
+    if (showY && inY) dot(phX(0), cy, 6.5, COL.y, '#fff');
+    dot(cx, cy, 8, COL.traj, '#fff');
+  });
+}
+
+// ---------- Eigen information ----------
+function eigen(){
+  const {a,b,c,d} = S;
+  const tr = a + d, det = a*d - b*c, s = tr/2, del = s*s - det;
+  const scaleEps = 1e-9*Math.max(1, Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d))**2;
+  const vecFor = lam => {
+    let v = [b, lam - a];
+    if (Math.hypot(v[0], v[1]) < 1e-9) v = [lam - d, c];
+    return Math.hypot(v[0], v[1]) < 1e-9 ? null : v;
+  };
+  if (del > scaleEps){
+    const r = Math.sqrt(del), l1 = s + r, l2 = s - r;
+    return {real:true, lams:[l1, l2], vecs:[vecFor(l1), vecFor(l2)].filter(Boolean), tr, det, del};
+  }
+  if (del < -scaleEps) return {real:false, re:s, im:Math.sqrt(-del), vecs:[], tr, det, del};
+  const v = vecFor(s);
+  return {real:true, lams:[s, s], vecs: v ? [v] : [], repeated:true, tr, det, del};
+}
+const fm = v => { const r = Math.abs(v) < 5e-4 ? 0 : v; const s = (+r.toFixed(3)).toString(); return r < 0 ? '−' + s.slice(1) : s; };
+function classify(e){
+  const {tr, det, del} = e, tiny = 1e-9;
+  const zeroA = [S.a,S.b,S.c,S.d].every(v => Math.abs(v) < tiny);
+  if (zeroA) return 'Every point is an equilibrium';
+  if (Math.abs(det) < tiny) return 'Zero eigenvalue: a whole line of equilibria';
+  if (det < 0) return 'Saddle (unstable)';
+  if (!e.real && Math.abs(tr) < tiny) return 'Center (stable, not asymptotically)';
+  if (!e.real) return tr < 0 ? 'Spiral sink (asymptotically stable)' : 'Spiral source (unstable)';
+  if (e.repeated){
+    const star = Math.abs(S.b) < tiny && Math.abs(S.c) < tiny && Math.abs(S.a - S.d) < tiny;
+    return (star ? 'Star node' : 'Degenerate node (one eigenvector)') + (tr < 0 ? ', sink' : ', source');
+  }
+  return tr < 0 ? 'Nodal sink (asymptotically stable)' : 'Nodal source (unstable)';
+}
+function updateInfo(){
+  const box = document.getElementById('info');
+  box.hidden = !cbInfo.checked;
+  if (!cbInfo.checked) return;
+  const e = eigen();
+  let lam;
+  if (!e.real) lam = `λ = ${fm(e.re)} ± ${fm(e.im)}<i>i</i>`;
+  else if (e.repeated) lam = `λ = ${fm(e.lams[0])} (repeated)`;
+  else lam = `λ₁ = ${fm(e.lams[0])}, &nbsp;λ₂ = ${fm(e.lams[1])}`;
+  box.innerHTML = `${lam}<br>trace = ${fm(e.tr)}, &nbsp;det = ${fm(e.det)}<br><b>${classify(e)}</b>`;
+}
+
+// ---------- System display ----------
+function term(coef, v, first){
+  if (Math.abs(coef) < 1e-12) return '';
+  const mag = Math.abs(coef), c = (mag === 1 ? '' : (+mag.toFixed(3)).toString());
+  const sign = coef < 0 ? (first ? '−' : ' − ') : (first ? '' : ' + ');
+  return sign + c + `<i>${v}</i>`;
+}
+function rhs(p, q){
+  const s1 = term(p, 'x', true), s2 = term(q, 'y', s1 === '');
+  return (s1 + s2) || '0';
+}
+function updateSystem(){
+  document.getElementById('sys').innerHTML =
+    `<i>x</i>′ = ${rhs(S.a, S.b)}<br><i>y</i>′ = ${rhs(S.c, S.d)}`;
+}
+
+// ---------- Controls ----------
+const $ = id => document.getElementById(id);
+const cbField = $('cbField'), cbPath = $('cbPath'), cbTrace = $('cbTrace'), cbStd = $('cbStd'),
+      cbNull = $('cbNull'), cbEig = $('cbEig'), cbInfo = $('cbInfo');
+
+function pair(key, onChange){
+  const r = $(key + '_r'), n = $(key + '_n');
+  r.addEventListener('input', () => { S[key] = +r.value; n.value = r.value; onChange(); });
+  n.addEventListener('input', () => {
+    if (n.value === '' || isNaN(+n.value)) return;
+    S[key] = +n.value; r.value = n.value; onChange();
+  });
+}
+function setPair(key, v){ $(key + '_r').value = v; $(key + '_n').value = +(+v).toFixed(3); }
+
+function matrixChanged(){ $('preset').value = 'custom'; refresh(); }
+function refresh(){ recompute(); updateSystem(); updateInfo(); draw(); }
+
+['a','b','c','d'].forEach(k => pair(k, matrixChanged));
+['x0','y0'].forEach(k => pair(k, () => { S.t = 0; syncT(); refresh(); }));
+pair('t', () => { S.t = Math.max(0, Math.min(S.T, S.t)); S.playing = false; syncPlay(); draw(); });
+pair('T', () => {
+  S.T = Math.max(1, S.T); $('t_r').max = S.T; S.t = Math.min(S.t, S.T); syncT(); refresh();
+});
+pair('sp', () => {});
+// 'sp' maps to speed
+$('sp_r').addEventListener('input', () => { S.speed = +$('sp_r').value; });
+$('sp_n').addEventListener('input', () => { if (+$('sp_n').value > 0) S.speed = +$('sp_n').value; });
+
+function syncT(){ $('t_r').value = S.t; $('t_n').value = S.t.toFixed(2); }
+function syncPlay(){ $('play').textContent = S.playing ? '❚❚ Pause' : '▶ Play'; }
+
+function applyPreset(name){
+  const p = PRESETS[name]; if (!p) return;
+  [S.a, S.b, S.c, S.d] = p.A; [S.x0, S.y0] = p.s;
+  ['a','b','c','d','x0','y0'].forEach(k => setPair(k, S[k]));
+  S.t = 0; syncT(); refresh();
+}
+$('preset').addEventListener('change', e => { applyPreset(e.target.value); play(); });
+
+document.querySelectorAll('#comp button').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('#comp button').forEach(b => b.classList.toggle('on', b === btn));
+  S.comp = btn.dataset.c; draw();
+}));
+
+[cbField, cbPath, cbTrace, cbStd, cbNull, cbEig].forEach(cb => cb.addEventListener('change', draw));
+cbInfo.addEventListener('change', updateInfo);
+$('win').addEventListener('change', e => { S.L = +e.target.value; draw(); });
+
+function play(){ if (S.t >= S.T - 1e-9) S.t = 0; S.playing = true; last = null; syncPlay(); }
+$('play').addEventListener('click', () => { if (S.playing){ S.playing = false; syncPlay(); } else play(); });
+$('step').addEventListener('click', () => { S.playing = false; syncPlay(); S.t = Math.min(S.T, S.t + S.T/40); syncT(); draw(); });
+$('reset').addEventListener('click', () => { S.playing = false; syncPlay(); S.t = 0; syncT(); draw(); });
+
+// click in phase plane to choose a start point
+function toLogical(e){ const r = cv.getBoundingClientRect(); return [(e.clientX - r.left)/r.width*W, (e.clientY - r.top)/r.height*H]; }
+const inPh = (x,y) => x >= rPh.x && x <= rPh.x+rPh.w && y >= rPh.y && y <= rPh.y+rPh.h;
+cv.addEventListener('mousemove', e => { const [x,y] = toLogical(e); cv.style.cursor = inPh(x,y) ? 'crosshair' : 'default'; });
+cv.addEventListener('click', e => {
+  const [px,py] = toLogical(e); if (!inPh(px,py)) return;
+  const x = (px - rPh.x)/rPh.w*2*S.L - S.L, y = S.L - (py - rPh.y)/rPh.h*2*S.L;
+  S.x0 = Math.round(x*10)/10; S.y0 = Math.round(y*10)/10;
+  setPair('x0', S.x0); setPair('y0', S.y0);
+  S.t = 0; syncT(); refresh(); play();
+});
+
+// animation loop
+let last = null;
+function loop(ts){
+  if (S.playing){
+    if (last !== null){
+      S.t += (ts - last)/1000 * S.speed;
+      if (S.t >= S.T){ S.t = S.T; S.playing = false; syncPlay(); }
+      syncT(); draw();
+    }
+    last = ts;
+  } else last = null;
+  requestAnimationFrame(loop);
+}
+
+// ---------- Init ----------
+['a','b','c','d','x0','y0'].forEach(k => setPair(k, S[k]));
+setPair('T', S.T); $('t_r').max = S.T; syncT();
+setPair('sp', S.speed);
+window.addEventListener('resize', fit);
+recompute(); updateSystem(); updateInfo(); fit();
+play();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
