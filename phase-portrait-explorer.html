@@ -14,7 +14,7 @@
   .app{display:flex;gap:16px;padding:12px;align-items:flex-start}
   .controls{width:320px;flex:0 0 320px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:15px;
             max-height:calc(100vh - 24px);overflow-y:auto;position:sticky;top:12px}
-  .stage{flex:1;display:flex;justify-content:center;min-width:0}
+  .stage{flex:1;display:flex;justify-content:flex-start;min-width:0}
   canvas{background:#fff;border:1px solid var(--line);border-radius:12px;display:block}
   h1{font-size:18px;margin:0 0 10px}
   h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:16px 0 6px}
@@ -114,14 +114,28 @@
 
 <script>
 // ---------- Layout (logical canvas coordinates) ----------
-const P = 440, Q = 360;           // phase-plane size, time-axis length
-const L0 = 70, T0 = 44, GAPX = 54, GAPY = 64;
-const W = L0 + P + GAPX + Q + 24;
-const H = T0 + P + GAPY + Q + 40;
-const rPh  = {x: L0,            y: T0,            w: P, h: P};   // phase plane
-const rY   = {x: L0 + P + GAPX, y: T0,            w: Q, h: P};   // y(t): t right, y up (shares y with phase)
-const rX   = {x: L0,            y: T0 + P + GAPY, w: P, h: Q};   // x(t): x right, t DOWN (shares x with phase)
-const rXs  = {x: L0 + P + GAPX, y: T0 + P + GAPY, w: Q, h: Q};   // x(t): usual orientation
+// The layout is recomputed whenever the window changes size (see layout()).
+// P = phase-plane size; the right column (time to the right) stretches to use the width;
+// the bottom row (sideways x(t), time running down) is a fixed fraction of P.
+const L0 = 66, T0 = 40, GAPX = 56, GAPY = 62, RM = 30, BM = 42;
+const BOTTOM_RATIO = 0.55;        // bottom-row height as a fraction of P
+const MIN_P = 280;                // below this the page scrolls instead of shrinking further
+let W = 0, H = 0;
+const rPh = {}, rY = {}, rX = {}, rXs = {};
+function layout(availW, availH){
+  let P = (availH - T0 - GAPY - BM) / (1 + BOTTOM_RATIO);          // fill the height
+  P = Math.min(P, (availW - L0 - GAPX - RM) / 1.8);                // leave room for the time graphs
+  P = Math.max(MIN_P, Math.floor(P));
+  const Qh = Math.round(BOTTOM_RATIO * P);
+  let Qw = availW - L0 - P - GAPX - RM;                            // time graphs take the remaining width
+  Qw = Math.round(Math.max(0.8 * P, Math.min(Qw, 2.6 * P)));
+  Object.assign(rPh, {x: L0,            y: T0,            w: P,  h: P});   // phase plane
+  Object.assign(rY,  {x: L0 + P + GAPX, y: T0,            w: Qw, h: P});   // y(t): t right, y up (shares y with phase)
+  Object.assign(rX,  {x: L0,            y: T0 + P + GAPY, w: P,  h: Qh});  // x(t): x right, t DOWN (shares x with phase)
+  Object.assign(rXs, {x: L0 + P + GAPX, y: T0 + P + GAPY, w: Qw, h: Qh});  // x(t): usual orientation
+  W = L0 + P + GAPX + Qw + RM;
+  H = T0 + P + GAPY + Qh + BM;
+}
 
 const COL = {x:'#2563eb', y:'#ea580c', traj:'#6d28d9', ink:'#1f2937', grid:'#eef0f3', axis:'#9ca3af', field:'#c4c9d2', eig:'#059669'};
 
@@ -197,13 +211,13 @@ const ctx = cv.getContext('2d');
 let scale = 1;
 function fit(){
   const st = document.querySelector('.stage');
-  const availW = st.clientWidth;
-  const availH = window.innerWidth > 960 ? window.innerHeight - 26 : 10000;
-  const s = Math.max(0.3, Math.min(availW / W, availH / H));
-  cv.style.width = (W*s) + 'px'; cv.style.height = (H*s) + 'px';
+  const availW = st.clientWidth - 2;
+  const availH = window.innerWidth > 960 ? window.innerHeight - 26 : availW * 0.95;
+  layout(availW, availH);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const dpr = window.devicePixelRatio || 1;
-  cv.width = Math.round(W*s*dpr); cv.height = Math.round(H*s*dpr);
-  scale = s*dpr;
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+  scale = dpr;
   draw();
 }
 
@@ -284,22 +298,23 @@ function draw(){
   for (let v = -L; v <= L + 1e-9; v += st) ctx.fillText(fmtTick(v), phX(v), rPh.y+rPh.h+6);
   for (let t = 0; t <= S.T + 1e-9; t += ts){ ctx.fillText(fmtTick(t), tR(t), rY.y+rY.h+6); ctx.fillText(fmtTick(t), tRs(t), rXs.y+rXs.h+6); }
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-  for (let v = -L; v <= L + 1e-9; v += st){ ctx.fillText(fmtTick(v), rPh.x-8, phY(v)); ctx.fillText(fmtTick(v), rXs.x-8, xUp(v)); }
-  for (let t = 0; t <= S.T + 1e-9; t += ts) ctx.fillText(fmtTick(t), rX.x-8, tD(t));
+  // short bottom panels: label every other tick when labels would crowd (grid lines stay)
+  const skipX = rXs.h * st / (2*L) < 24 ? 2 : 1, skipT = rX.h * ts / S.T < 24 ? 2 : 1;
+  let k = 0;
+  for (let v = -L; v <= L + 1e-9; v += st, k++){ ctx.fillText(fmtTick(v), rPh.x-8, phY(v)); if (Math.round(v/st) % skipX === 0) ctx.fillText(fmtTick(v), rXs.x-8, xUp(v)); }
+  k = 0;
+  for (let t = 0; t <= S.T + 1e-9; t += ts, k++) if (k % skipT === 0) ctx.fillText(fmtTick(t), rX.x-8, tD(t));
 
   // titles & axis names
-  title('Phase plane', rPh.x, rPh.y-14);
+  title('Phase plane', rPh.x, rPh.y-12);
   title('y(t)', rY.x, rY.y-14);
   title('x(t)   (time runs down)', rX.x, rX.y-14);
   title('x(t)   (usual orientation)', rXs.x, rXs.y-14);
-  axisName('x', rPh.x+rPh.w-14, phY(0)-14, 'center');
-  axisName('y', phX(0)+14, rPh.y+14, 'center');
-  axisName('t', rY.x+rY.w-12, phY(0)-14, 'center');
-  axisName('y', rY.x+12, rY.y+14, 'center', COL.y);
-  axisName('x', rX.x+rX.w-14, rX.y+16, 'center', COL.x);
-  axisName('t', phX(0)+14, rX.y+rX.h-16, 'center');
-  axisName('t', rXs.x+rXs.w-12, xUp(0)-14, 'center');
-  axisName('x', rXs.x+12, rXs.y+14, 'center', COL.x);
+  axisName('x', rPh.x+rPh.w+12, phY(0), 'center');
+  axisName('y', phX(0), rPh.y-13, 'center');
+  axisName('t', rY.x+rY.w+13, phY(0), 'center');
+  axisName('t', phX(0), rX.y+rX.h+15, 'center');
+  axisName('t', rXs.x+rXs.w+13, xUp(0), 'center');
 
   // ===== phase plane contents =====
   clip(rPh, () => {
