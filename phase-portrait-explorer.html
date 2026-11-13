@@ -53,11 +53,13 @@
       <option value="center">Center</option>
       <option value="spiralSource">Spiral source</option>
       <option value="saddle">Saddle</option>
-      <option value="stableNode">Nodal sink</option>
-      <option value="unstableNode">Nodal source</option>
-      <option value="degenerate">Repeated eigenvalue (one eigenvector)</option>
-      <option value="star">Star (proper node)</option>
-      <option value="zeroEig">Zero eigenvalue</option>
+      <option value="stableNode">Real sink</option>
+      <option value="unstableNode">Real source</option>
+      <option value="degenerate">Repeated sink</option>
+      <option value="repeatedSource">Repeated source</option>
+      <option value="star">Repeated sink, star</option>
+      <option value="zeroEig">Zero and negative eigenvalues</option>
+      <option value="zeroPos">Zero and positive eigenvalues</option>
       <option value="custom">Custom</option>
     </select>
     <div class="row"><label for="a_r">a</label><input type="range" id="a_r" min="-5" max="5" step="0.1"><input type="number" id="a_n" step="0.1"></div>
@@ -143,7 +145,9 @@ const PRESETS = {
   unstableNode: {A:[1, 0.5, 0.5, 1],    s:[0.3, -0.5]},
   degenerate:   {A:[-1, 1, 0, -1],      s:[-1, 4]},
   star:         {A:[-1, 0, 0, -1],      s:[4, 3]},
-  zeroEig:      {A:[-1, 1, 1, -1],      s:[4, -1]}
+  zeroEig:      {A:[-1, 1, 1, -1],      s:[4, -1]},
+  repeatedSource: {A:[0.5, 1, 0, 0.5],  s:[-1, 0.3]},
+  zeroPos:      {A:[1, 1, 1, 1],        s:[0.5, -1]}
 };
 
 // ---------- Exact solution: x(t) = e^{At} x0 ----------
@@ -314,6 +318,25 @@ function draw(){
         line(phX(-k*v[0]), phY(-k*v[1]), phX(k*v[0]), phY(k*v[1]));
       }
       ctx.setLineDash([]);
+      // direction arrows: one per straight-line solution (each half of an eigenvector line),
+      // pointing in if λ < 0 and out if λ > 0; none if λ = 0 (that line is all equilibria).
+      // For a real sink or source, the strong eigenvector (larger |λ|) gets double arrows.
+      const realSinkSource = lines.length === 2 && lines[0].lam * lines[1].lam > 0;
+      const strongLam = realSinkSource ? (Math.abs(lines[0].lam) > Math.abs(lines[1].lam) ? lines[0].lam : lines[1].lam) : null;
+      for (const {lam, v} of lines){
+        if (Math.abs(lam) < 1e-9) continue;
+        const heads = (lam === strongLam) ? 2 : 1;
+        const k = 0.35*L/Math.max(Math.abs(v[0]), Math.abs(v[1]));
+        for (const sg of [1, -1]){
+          const px = phX(sg*k*v[0]), py = phY(sg*k*v[1]);
+          let ang = Math.atan2(-sg*v[1], sg*v[0]);       // screen angle pointing away from the origin
+          if (lam < 0) ang += Math.PI;                   // sink direction: toward the origin
+          for (let h = 0; h < heads; h++){
+            const off = heads === 2 ? (h === 0 ? -8 : 8) : 0;
+            arrowHead(px + off*Math.cos(ang), py + off*Math.sin(ang), ang, 10, COL.eig);
+          }
+        }
+      }
       // label each line with its eigenvalue, near the edge of the window
       ctx.font = 'italic 17px "Cambria Math","Times New Roman",serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (const {lam, v} of lines){
