@@ -16,7 +16,10 @@
     .intro { max-width:660px; color:var(--muted); font-size:1.15rem; }
 
     /* Jump links to each topic */
-    .topics { display:flex; flex-wrap:wrap; gap:10px; margin-top:26px; }
+    .topics { display:flex; flex-direction:column; gap:14px; margin-top:28px; }
+    .topic-group { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+    .topic-group .label { flex:0 0 220px; font-size:.74rem; font-weight:750; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
+    .topic-group .label span { display:block; font-size:.9rem; font-weight:500; letter-spacing:0; text-transform:none; color:var(--muted); }
     .topics a { padding:8px 16px; border:1px solid var(--line); border-radius:999px; color:var(--ink); text-decoration:none; font-weight:650; font-size:.95rem; background:#16233a; transition:border-color .16s,color .16s; }
     .topics a:hover,.topics a:focus-visible { border-color:var(--accent); color:var(--accent); outline:none; }
     .topics a.active { background:var(--accent); border-color:var(--accent); color:#101827; }
@@ -46,7 +49,7 @@
     .note { border-top:1px solid var(--line); margin-top:64px; padding-top:22px; color:var(--muted); font-size:.93rem; }
     .note a { color:var(--accent); }
     @media(max-width:900px) { .grid.three { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-    @media(max-width:640px) { .wrap{padding:44px 18px 70px;} .grid,.grid.three{grid-template-columns:1fr;} .card,.grid.three .card{min-height:170px;} }
+    @media(max-width:640px) { .topics{gap:22px;} .topic-group .label{flex-basis:100%;} .wrap{padding:44px 18px 70px;} .grid,.grid.three{grid-template-columns:1fr;} .card,.grid.three .card{min-height:170px;} }
   </style>
 </head>
 <body>
@@ -54,19 +57,28 @@
     <div class="eyebrow">Interactive Mathematics</div>
     <h1>Mathematical<br>Visualizations</h1>
     <p class="intro">Interactive tools for exploring mathematical ideas, experimenting with models, and bringing mathematics to life in the classroom.</p>
-    <nav class="topics" aria-label="Topics">
-      <a href="#proofs">Modular Arithmetic</a>
-      <a href="#sequences">Sequences</a>
-      <a href="#limits">Limits of Functions</a>
-      <a href="#oscillators">Oscillators</a>
-      <a href="#systems">Linear Systems</a>
-      <a href="#diseases">Diseases &amp; Dice</a>
-      <a href="#riddles">Riddles &amp; Tricks</a>
+    <nav class="topics" aria-label="Topics by course">
+      <div class="topic-group">
+        <div class="label">Math 230 <span>Differential Equations</span></div>
+        <a href="#oscillators">Oscillators</a>
+        <a href="#systems">Linear Systems</a>
+        <a href="#diseases">Diseases &amp; Dice</a>
+      </div>
+      <div class="topic-group">
+        <div class="label">Math 280 <span>Introduction to Proofs</span></div>
+        <a href="#proofs">Modular Arithmetic</a>
+        <a href="#riddles">Riddles &amp; Tricks</a>
+      </div>
+      <div class="topic-group">
+        <div class="label">Math 305 <span>Real Analysis</span></div>
+        <a href="#sequences">Sequences</a>
+        <a href="#limits">Limits of Functions</a>
+      </div>
     </nav>
 
     <!-- ============ MODULAR ARITHMETIC ============ -->
     <section class="section" id="proofs" aria-labelledby="proofs-title">
-      <div class="course">Introduction to Proofs</div>
+      <div class="course">Math 280 · Introduction to Proofs</div>
       <h2 id="proofs-title">Modular Arithmetic</h2>
       <p>Build intuition for congruence and equivalence classes before proving their properties.</p>
       <div class="grid three">
@@ -216,7 +228,7 @@
 
     <!-- ============ RIDDLES & TRICKS ============ -->
     <section class="section" id="riddles" aria-labelledby="riddles-title">
-      <div class="course">Puzzles · Probability · Number Theory</div>
+      <div class="course">Math 280 · Puzzles · Probability · Number Theory</div>
       <h2 id="riddles-title">Riddles &amp; Tricks</h2>
       <p>Classic puzzles and number tricks to play with first and explain afterward.</p>
       <div class="grid three">
