@@ -94,6 +94,7 @@
     <h2>Show</h2>
     <div class="checks">
       <label><input type="checkbox" id="cbField" checked> Direction field</label>
+      <label><input type="checkbox" id="cbEig"> Eigenvector lines</label>
       <label><input type="checkbox" id="cbTrace" checked> Trace the time graphs</label>
     </div>
   </div>
@@ -126,7 +127,7 @@ function layout(availW, availH){
   H = T0 + P + GAPY + Qh + BM;
 }
 
-const COL = {x:'#2563eb', y:'#ea580c', traj:'#6d28d9', ink:'#1f2937', grid:'#eef0f3', axis:'#9ca3af', field:'#c4c9d2'};
+const COL = {x:'#2563eb', y:'#ea580c', traj:'#6d28d9', ink:'#1f2937', grid:'#eef0f3', axis:'#9ca3af', field:'#c4c9d2', eig:'#059669'};
 
 // ---------- State ----------
 const S = {a:-0.25, b:2, c:-2, d:-0.25, x0:4, y0:0, L:5, T:10, t:0, speed:1, comp:'x', playing:false};
@@ -304,6 +305,28 @@ function draw(){
         arrowHead(px + ux*len, py + uy*len, Math.atan2(uy, ux), 4.5, COL.field);
       }
     }
+    // eigenvector lines (only when A has real eigenvalues with eigenvector directions to draw)
+    if (cbEig.checked){
+      ctx.strokeStyle = COL.eig; ctx.lineWidth = 2.2; ctx.setLineDash([10,6]);
+      const lines = eigenLines();
+      for (const {lam, v} of lines){
+        const k = 3*L/Math.hypot(v[0], v[1]);
+        line(phX(-k*v[0]), phY(-k*v[1]), phX(k*v[0]), phY(k*v[1]));
+      }
+      ctx.setLineDash([]);
+      // label each line with its eigenvalue, near the edge of the window
+      ctx.font = 'italic 17px "Cambria Math","Times New Roman",serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const {lam, v} of lines){
+        const sgn = (v[1] < 0 || (v[1] === 0 && v[0] < 0)) ? -1 : 1;     // label the upper end
+        const k = 0.62*L/Math.max(Math.abs(v[0]), Math.abs(v[1]));
+        const px = phX(sgn*k*v[0]), py = phY(sgn*k*v[1]);
+        const n = Math.hypot(v[0], v[1]), ox = -v[1]/n*sgn*28, oy = -v[0]/n*sgn*28;  // nudge off the line
+        const txt = 'λ = ' + fmtNum(lam);
+        const w = ctx.measureText(txt).width + 8;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(px+ox-w/2, py+oy-11, w, 22);
+        ctx.fillStyle = COL.eig; ctx.fillText(txt, px+ox, py+oy);
+      }
+    }
     // whole trajectory (faint) with direction arrows
     {
       ctx.strokeStyle = 'rgba(109,40,217,0.25)'; ctx.lineWidth = 2.5;
@@ -365,6 +388,27 @@ function draw(){
   });
 }
 
+// ---------- Eigenvectors ----------
+// Returns the eigenvector directions of A to draw: two lines for distinct real eigenvalues,
+// one line for a repeated eigenvalue with a single eigenvector, none for complex eigenvalues
+// or when every vector is an eigenvector (A = λI).
+function eigenLines(){
+  const {a,b,c,d} = S;
+  const s = (a + d)/2, del = s*s - (a*d - b*c);
+  const tol = 1e-9 * Math.max(1, a*a, b*b, c*c, d*d);
+  const vecFor = lam => {
+    let v = [b, lam - a];                                  // (A - λI)v = 0, first row
+    if (Math.hypot(v[0], v[1]) < 1e-9) v = [lam - d, c];   // use the second row if the first is zero
+    return Math.hypot(v[0], v[1]) < 1e-9 ? null : v;
+  };
+  let lams;
+  if (del > tol){ const r = Math.sqrt(del); lams = [s + r, s - r]; }
+  else if (del >= -tol) lams = [s];
+  else return [];
+  return lams.map(lam => ({lam, v: vecFor(lam)})).filter(e => e.v);
+}
+const fmtNum = v => { const r = +(Math.abs(v) < 5e-4 ? 0 : v).toFixed(2); return r < 0 ? '−' + Math.abs(r) : '' + r; };
+
 // ---------- System display ----------
 function term(coef, v, first){
   if (Math.abs(coef) < 1e-12) return '';
@@ -383,7 +427,7 @@ function updateSystem(){
 
 // ---------- Controls ----------
 const $ = id => document.getElementById(id);
-const cbField = $('cbField'), cbTrace = $('cbTrace');
+const cbField = $('cbField'), cbTrace = $('cbTrace'), cbEig = $('cbEig');
 
 function pair(key, onChange){
   const r = $(key + '_r'), n = $(key + '_n');
@@ -424,7 +468,7 @@ document.querySelectorAll('#comp button').forEach(btn => btn.addEventListener('c
   S.comp = btn.dataset.c; draw();
 }));
 
-[cbField, cbTrace].forEach(cb => cb.addEventListener('change', draw));
+[cbField, cbTrace, cbEig].forEach(cb => cb.addEventListener('change', draw));
 $('win').addEventListener('change', e => { S.L = +e.target.value; draw(); });
 
 function play(){ if (S.t >= S.T - 1e-9) S.t = 0; S.playing = true; last = null; syncPlay(); }
