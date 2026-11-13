@@ -12,14 +12,14 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
   .app{display:flex;gap:16px;padding:12px;align-items:flex-start}
-  .controls{width:320px;flex:0 0 320px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:15px;
+  .controls{width:320px;flex:0 0 320px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:15px;
             max-height:calc(100vh - 24px);overflow-y:auto;position:sticky;top:12px}
   .stage{flex:1;display:flex;justify-content:flex-start;min-width:0}
   canvas{background:#fff;border:1px solid var(--line);border-radius:12px;display:block}
   h1{font-size:18px;margin:0 0 10px}
-  h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:16px 0 6px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:11px 0 5px}
   .system{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif;font-size:20px;line-height:1.55;background:#f3f4f6;border-radius:8px;padding:6px 12px}
-  .row{display:grid;grid-template-columns:30px 1fr 66px;align-items:center;gap:8px;margin:5px 0}
+  .row{display:grid;grid-template-columns:30px 1fr 66px;align-items:center;gap:8px;margin:3px 0}
   .row label{font-family:"Cambria Math","Times New Roman",serif;font-style:italic;font-size:18px}
   .row label.plain{font-family:inherit;font-style:normal;font-size:13px;color:var(--muted)}
   input[type=range]{width:100%;accent-color:var(--traj)}
@@ -35,11 +35,9 @@
   .btns button{flex:1;padding:8px 0;font-size:14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer}
   .btns button.primary{background:var(--traj);border-color:var(--traj);color:#fff}
   .btns button:hover{filter:brightness(.96)}
-  .checks label{display:flex;align-items:center;gap:8px;margin:5px 0;cursor:pointer}
+  .checks label{display:flex;align-items:center;gap:8px;margin:4px 0;cursor:pointer}
   .checks input{width:16px;height:16px;accent-color:var(--traj)}
   .hint{font-size:13px;color:var(--muted);margin:2px 0 0}
-  #info{margin-top:10px;font-size:15px;background:#f3f4f6;border-radius:8px;padding:8px 10px;line-height:1.5}
-  #info[hidden]{display:none}
   @media (max-width: 960px){ .app{flex-direction:column} .controls{width:100%;flex:none;position:static;max-height:none} }
 </style>
 </head>
@@ -67,10 +65,7 @@
     <div class="row"><label for="c_r">c</label><input type="range" id="c_r" min="-5" max="5" step="0.1"><input type="number" id="c_n" step="0.1"></div>
     <div class="row"><label for="d_r">d</label><input type="range" id="d_r" min="-5" max="5" step="0.1"><input type="number" id="d_n" step="0.1"></div>
 
-    <h2>Start point</h2>
-    <div class="row"><label for="x0_r">x₀</label><input type="range" id="x0_r" min="-10" max="10" step="0.1"><input type="number" id="x0_n" step="0.1"></div>
-    <div class="row"><label for="y0_r">y₀</label><input type="range" id="y0_r" min="-10" max="10" step="0.1"><input type="number" id="y0_n" step="0.1"></div>
-    <p class="hint">Or click anywhere in the phase plane.</p>
+    <p class="hint">Click the phase plane to choose a start point.</p>
 
     <h2>Follow</h2>
     <div class="seg" id="comp">
@@ -99,14 +94,8 @@
     <h2>Show</h2>
     <div class="checks">
       <label><input type="checkbox" id="cbField" checked> Direction field</label>
-      <label><input type="checkbox" id="cbPath" checked> Whole trajectory (faint)</label>
       <label><input type="checkbox" id="cbTrace" checked> Trace the time graphs</label>
-      <label><input type="checkbox" id="cbStd" checked> <span><i>x</i>(<i>t</i>) in usual orientation</span></label>
-      <label><input type="checkbox" id="cbNull"> Nullclines and turning points</label>
-      <label><input type="checkbox" id="cbEig"> Eigenvector lines</label>
-      <label><input type="checkbox" id="cbInfo"> Eigenvalues and type</label>
     </div>
-    <div id="info" hidden></div>
   </div>
 
   <div class="stage"><canvas id="cv"></canvas></div>
@@ -137,13 +126,12 @@ function layout(availW, availH){
   H = T0 + P + GAPY + Qh + BM;
 }
 
-const COL = {x:'#2563eb', y:'#ea580c', traj:'#6d28d9', ink:'#1f2937', grid:'#eef0f3', axis:'#9ca3af', field:'#c4c9d2', eig:'#059669'};
+const COL = {x:'#2563eb', y:'#ea580c', traj:'#6d28d9', ink:'#1f2937', grid:'#eef0f3', axis:'#9ca3af', field:'#c4c9d2'};
 
 // ---------- State ----------
 const S = {a:-0.25, b:2, c:-2, d:-0.25, x0:4, y0:0, L:5, T:10, t:0, speed:1, comp:'x', playing:false};
 const N = 1500;                    // samples on [0, T]
 let samp = {t:[], x:[], y:[]};
-let turnX = [], turnY = [];        // turning points (x'=0, y'=0) along the path
 
 const PRESETS = {
   spiralSink:   {A:[-0.25, 2, -2, -0.25], s:[4, 0]},
@@ -177,22 +165,6 @@ function recompute(){
   for (let i = 0; i <= N; i++){
     const t = S.T*i/N, p = solve(t);
     samp.t[i] = t; samp.x[i] = p[0]; samp.y[i] = p[1];
-  }
-  // turning points: sign changes of x' = ax+by and y' = cx+dy along the path
-  turnX = []; turnY = [];
-  if (S.x0 !== 0 || S.y0 !== 0){
-    const fx = i => S.a*samp.x[i] + S.b*samp.y[i];
-    const fy = i => S.c*samp.x[i] + S.d*samp.y[i];
-    for (let i = 0; i < N; i++){
-      for (const [f, arr] of [[fx, turnX], [fy, turnY]]){
-        const u = f(i), v = f(i+1);
-        if (u !== 0 && u*v < 0){
-          const ts = samp.t[i] + (samp.t[i+1] - samp.t[i]) * u/(u - v);
-          const p = solve(ts);
-          arr.push({t: ts, x: p[0], y: p[1]});
-        }
-      }
-    }
   }
 }
 
@@ -269,7 +241,7 @@ function draw(){
   const cur = solve(S.t);
 
   // ===== frames & grids =====
-  frame(rPh, false); frame(rY, !showY); frame(rX, !showX); frame(rXs, !(showX && cbStd.checked));
+  frame(rPh, false); frame(rY, !showY); frame(rX, !showX); frame(rXs, !showX);
 
   ctx.lineWidth = 1;
   // phase grid
@@ -332,28 +304,8 @@ function draw(){
         arrowHead(px + ux*len, py + uy*len, Math.atan2(uy, ux), 4.5, COL.field);
       }
     }
-    // eigenvector lines
-    if (cbEig.checked){
-      const ev = eigen();
-      if (ev.real){
-        ctx.strokeStyle = COL.eig; ctx.lineWidth = 2; ctx.setLineDash([10,6]);
-        for (const v of ev.vecs){ const k = 3*L/Math.hypot(v[0], v[1]); line(phX(-k*v[0]), phY(-k*v[1]), phX(k*v[0]), phY(k*v[1])); }
-        ctx.setLineDash([]);
-      }
-    }
-    // nullclines
-    if (cbNull.checked){
-      ctx.lineWidth = 2; ctx.setLineDash([3,5]);
-      const nl = (p, q, col) => { // line p x + q y = 0
-        if (Math.abs(p) < 1e-12 && Math.abs(q) < 1e-12) return;
-        const dx = -q, dy = p, k = 3*L/Math.hypot(dx, dy);
-        ctx.strokeStyle = col; line(phX(-k*dx), phY(-k*dy), phX(k*dx), phY(k*dy));
-      };
-      nl(S.a, S.b, COL.x); nl(S.c, S.d, COL.y);
-      ctx.setLineDash([]);
-    }
     // whole trajectory (faint) with direction arrows
-    if (cbPath.checked){
+    {
       ctx.strokeStyle = 'rgba(109,40,217,0.25)'; ctx.lineWidth = 2.5;
       pathTo((t,x,y) => [phX(x), phY(y)], S.T);
       for (let q = 1; q <= 5; q++){
@@ -368,11 +320,6 @@ function draw(){
     // traced trajectory
     ctx.strokeStyle = COL.traj; ctx.lineWidth = 3;
     pathTo((t,x,y) => [phX(x), phY(y)], S.t);
-    // turning points on the phase path
-    if (cbNull.checked){
-      if (showX) for (const p of turnX) ring(phX(p.x), phY(p.y), 6, COL.x);
-      if (showY) for (const p of turnY) ring(phX(p.x), phY(p.y), 6, COL.y);
-    }
     // equilibrium & start
     dot(phX(0), phY(0), 4.5, COL.ink);
     ring(phX(S.x0), phY(S.y0), 6, COL.traj);
@@ -395,21 +342,18 @@ function draw(){
   // ===== y(t) panel =====
   if (showY) clip(rY, () => {
     if (cbTrace.checked){ ctx.strokeStyle = COL.y; ctx.lineWidth = 3; pathTo((t,x,y) => [tR(t), phY(y)], S.t); }
-    if (cbNull.checked && cbTrace.checked) for (const p of turnY) if (p.t <= S.t) ring(tR(p.t), phY(p.y), 6, COL.y);
     dot(tR(S.t), phY(clampV(cur[1])), 7, COL.y, '#fff');
   });
 
   // ===== x(t) sideways panel =====
   if (showX) clip(rX, () => {
     if (cbTrace.checked){ ctx.strokeStyle = COL.x; ctx.lineWidth = 3; pathTo((t,x,y) => [phX(x), tD(t)], S.t); }
-    if (cbNull.checked && cbTrace.checked) for (const p of turnX) if (p.t <= S.t) ring(phX(p.x), tD(p.t), 6, COL.x);
     dot(phX(clampV(cur[0])), tD(S.t), 7, COL.x, '#fff');
   });
 
   // ===== x(t) usual orientation =====
-  if (showX && cbStd.checked) clip(rXs, () => {
+  if (showX) clip(rXs, () => {
     if (cbTrace.checked){ ctx.strokeStyle = COL.x; ctx.lineWidth = 3; pathTo((t,x,y) => [tRs(t), xUp(x)], S.t); }
-    if (cbNull.checked && cbTrace.checked) for (const p of turnX) if (p.t <= S.t) ring(tRs(p.t), xUp(p.x), 6, COL.x);
     dot(tRs(S.t), xUp(clampV(cur[0])), 7, COL.x, '#fff');
   });
 
@@ -419,51 +363,6 @@ function draw(){
     if (showY && inY) dot(phX(0), cy, 6.5, COL.y, '#fff');
     dot(cx, cy, 8, COL.traj, '#fff');
   });
-}
-
-// ---------- Eigen information ----------
-function eigen(){
-  const {a,b,c,d} = S;
-  const tr = a + d, det = a*d - b*c, s = tr/2, del = s*s - det;
-  const scaleEps = 1e-9*Math.max(1, Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d))**2;
-  const vecFor = lam => {
-    let v = [b, lam - a];
-    if (Math.hypot(v[0], v[1]) < 1e-9) v = [lam - d, c];
-    return Math.hypot(v[0], v[1]) < 1e-9 ? null : v;
-  };
-  if (del > scaleEps){
-    const r = Math.sqrt(del), l1 = s + r, l2 = s - r;
-    return {real:true, lams:[l1, l2], vecs:[vecFor(l1), vecFor(l2)].filter(Boolean), tr, det, del};
-  }
-  if (del < -scaleEps) return {real:false, re:s, im:Math.sqrt(-del), vecs:[], tr, det, del};
-  const v = vecFor(s);
-  return {real:true, lams:[s, s], vecs: v ? [v] : [], repeated:true, tr, det, del};
-}
-const fm = v => { const r = Math.abs(v) < 5e-4 ? 0 : v; const s = (+r.toFixed(3)).toString(); return r < 0 ? '−' + s.slice(1) : s; };
-function classify(e){
-  const {tr, det, del} = e, tiny = 1e-9;
-  const zeroA = [S.a,S.b,S.c,S.d].every(v => Math.abs(v) < tiny);
-  if (zeroA) return 'Every point is an equilibrium';
-  if (Math.abs(det) < tiny) return 'Zero eigenvalue: a whole line of equilibria';
-  if (det < 0) return 'Saddle (unstable)';
-  if (!e.real && Math.abs(tr) < tiny) return 'Center (stable, not asymptotically)';
-  if (!e.real) return tr < 0 ? 'Spiral sink (asymptotically stable)' : 'Spiral source (unstable)';
-  if (e.repeated){
-    const star = Math.abs(S.b) < tiny && Math.abs(S.c) < tiny && Math.abs(S.a - S.d) < tiny;
-    return (star ? 'Star node' : 'Degenerate node (one eigenvector)') + (tr < 0 ? ', sink' : ', source');
-  }
-  return tr < 0 ? 'Nodal sink (asymptotically stable)' : 'Nodal source (unstable)';
-}
-function updateInfo(){
-  const box = document.getElementById('info');
-  box.hidden = !cbInfo.checked;
-  if (!cbInfo.checked) return;
-  const e = eigen();
-  let lam;
-  if (!e.real) lam = `λ = ${fm(e.re)} ± ${fm(e.im)}<i>i</i>`;
-  else if (e.repeated) lam = `λ = ${fm(e.lams[0])} (repeated)`;
-  else lam = `λ₁ = ${fm(e.lams[0])}, &nbsp;λ₂ = ${fm(e.lams[1])}`;
-  box.innerHTML = `${lam}<br>trace = ${fm(e.tr)}, &nbsp;det = ${fm(e.det)}<br><b>${classify(e)}</b>`;
 }
 
 // ---------- System display ----------
@@ -484,8 +383,7 @@ function updateSystem(){
 
 // ---------- Controls ----------
 const $ = id => document.getElementById(id);
-const cbField = $('cbField'), cbPath = $('cbPath'), cbTrace = $('cbTrace'), cbStd = $('cbStd'),
-      cbNull = $('cbNull'), cbEig = $('cbEig'), cbInfo = $('cbInfo');
+const cbField = $('cbField'), cbTrace = $('cbTrace');
 
 function pair(key, onChange){
   const r = $(key + '_r'), n = $(key + '_n');
@@ -498,10 +396,9 @@ function pair(key, onChange){
 function setPair(key, v){ $(key + '_r').value = v; $(key + '_n').value = +(+v).toFixed(3); }
 
 function matrixChanged(){ $('preset').value = 'custom'; refresh(); }
-function refresh(){ recompute(); updateSystem(); updateInfo(); draw(); }
+function refresh(){ recompute(); updateSystem(); draw(); }
 
 ['a','b','c','d'].forEach(k => pair(k, matrixChanged));
-['x0','y0'].forEach(k => pair(k, () => { S.t = 0; syncT(); refresh(); }));
 pair('t', () => { S.t = Math.max(0, Math.min(S.T, S.t)); S.playing = false; syncPlay(); draw(); });
 pair('T', () => {
   S.T = Math.max(1, S.T); $('t_r').max = S.T; S.t = Math.min(S.t, S.T); syncT(); refresh();
@@ -517,18 +414,17 @@ function syncPlay(){ $('play').textContent = S.playing ? '❚❚ Pause' : '▶ P
 function applyPreset(name){
   const p = PRESETS[name]; if (!p) return;
   [S.a, S.b, S.c, S.d] = p.A; [S.x0, S.y0] = p.s;
-  ['a','b','c','d','x0','y0'].forEach(k => setPair(k, S[k]));
+  ['a','b','c','d'].forEach(k => setPair(k, S[k]));
   S.t = 0; syncT(); refresh();
 }
-$('preset').addEventListener('change', e => { applyPreset(e.target.value); play(); });
+$('preset').addEventListener('change', e => { S.playing = false; syncPlay(); applyPreset(e.target.value); });
 
 document.querySelectorAll('#comp button').forEach(btn => btn.addEventListener('click', () => {
   document.querySelectorAll('#comp button').forEach(b => b.classList.toggle('on', b === btn));
   S.comp = btn.dataset.c; draw();
 }));
 
-[cbField, cbPath, cbTrace, cbStd, cbNull, cbEig].forEach(cb => cb.addEventListener('change', draw));
-cbInfo.addEventListener('change', updateInfo);
+[cbField, cbTrace].forEach(cb => cb.addEventListener('change', draw));
 $('win').addEventListener('change', e => { S.L = +e.target.value; draw(); });
 
 function play(){ if (S.t >= S.T - 1e-9) S.t = 0; S.playing = true; last = null; syncPlay(); }
@@ -544,8 +440,7 @@ cv.addEventListener('click', e => {
   const [px,py] = toLogical(e); if (!inPh(px,py)) return;
   const x = (px - rPh.x)/rPh.w*2*S.L - S.L, y = S.L - (py - rPh.y)/rPh.h*2*S.L;
   S.x0 = Math.round(x*10)/10; S.y0 = Math.round(y*10)/10;
-  setPair('x0', S.x0); setPair('y0', S.y0);
-  S.t = 0; syncT(); refresh(); play();
+  S.playing = false; syncPlay(); S.t = 0; syncT(); refresh();
 });
 
 // animation loop
@@ -563,12 +458,11 @@ function loop(ts){
 }
 
 // ---------- Init ----------
-['a','b','c','d','x0','y0'].forEach(k => setPair(k, S[k]));
+['a','b','c','d'].forEach(k => setPair(k, S[k]));
 setPair('T', S.T); $('t_r').max = S.T; syncT();
 setPair('sp', S.speed);
 window.addEventListener('resize', fit);
-recompute(); updateSystem(); updateInfo(); fit();
-play();
+recompute(); updateSystem(); fit();   // loads paused at t = 0; press Play to start
 requestAnimationFrame(loop);
 </script>
 </body>
