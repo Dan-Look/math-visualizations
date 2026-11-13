@@ -17,10 +17,14 @@
   .stage{flex:1;display:flex;justify-content:flex-start;min-width:0}
   canvas{background:#fff;border:1px solid var(--line);border-radius:12px;display:block}
   h1{font-size:18px;margin:0 0 10px}
-  h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:11px 0 5px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:8px 0 5px}
   .system{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif;font-size:20px;line-height:1.55;background:#f3f4f6;border-radius:8px;padding:6px 12px}
   .row{display:grid;grid-template-columns:30px 1fr 66px;align-items:center;gap:8px;margin:3px 0}
   .row label{font-family:"Cambria Math","Times New Roman",serif;font-style:italic;font-size:18px}
+  .row.auto{grid-template-columns:30px 1fr 52px auto}
+  .row.auto input[type=number]{width:52px}
+  .row label.autobox{display:flex;align-items:center;gap:4px;font:13px system-ui,-apple-system,"Segoe UI",sans-serif;font-style:normal;color:var(--muted);cursor:pointer}
+  .row label.autobox input{accent-color:var(--traj)}
   .row label.plain{font-family:inherit;font-style:normal;font-size:13px;color:var(--muted)}
   input[type=range]{width:100%;accent-color:var(--traj)}
   input[type=number]{width:66px;padding:3px 5px;font-size:14px;border:1px solid #d1d5db;border-radius:6px}
@@ -91,7 +95,7 @@
       <button id="reset">Reset</button>
     </div>
     <div class="row"><label for="t_r">t</label><input type="range" id="t_r" min="0" max="10" step="0.01"><input type="number" id="t_n" step="0.1" min="0"></div>
-    <div class="row"><label class="plain" for="T_r">end</label><input type="range" id="T_r" min="2" max="30" step="1"><input type="number" id="T_n" step="1" min="1"></div>
+    <div class="row auto"><label class="plain" for="T_r">end</label><input type="range" id="T_r" min="2" max="40" step="1"><input type="number" id="T_n" step="1" min="1"><label class="autobox" title="Choose the end time from the trajectory"><input type="checkbox" id="cbAuto" checked>auto</label></div>
     <div class="row"><label class="plain" for="sp_r">speed</label><input type="range" id="sp_r" min="0.2" max="4" step="0.1"><input type="number" id="sp_n" step="0.1" min="0.1"></div>
 
     <h2>Window</h2>
@@ -140,7 +144,7 @@ function layout(availW, availH){
 const COL = {x:'#2563eb', y:'#ea580c', traj:'#6d28d9', ink:'#1f2937', grid:'#eef0f3', axis:'#9ca3af', field:'#c4c9d2', eig:'#059669'};
 
 // ---------- State ----------
-const S = {a:-0.25, b:2, c:-2, d:-0.25, x0:4, y0:0, L:5, T:10, t:0, speed:1, comp:'x', playing:false};
+const S = {a:-0.25, b:2, c:-2, d:-0.25, x0:4, y0:0, L:5, T:10, t:0, speed:1, comp:'x', playing:false, auto:true, tStop:10};
 const N = 1500;                    // samples on [0, T]
 let samp = {t:[], x:[], y:[]};
 
@@ -171,6 +175,38 @@ function solve(t){
   const e = Math.exp(s*t);
   return [ e*((C + Sv*(a - s))*x0 + Sv*b*y0),
            e*(Sv*c*x0 + (C + Sv*(d - s))*y0) ];
+}
+
+// ---------- Automatic end time ----------
+// If the trajectory leaves the window, play stops when it leaves and the time axis ends at the
+// next convenient tick. A center runs for two periods. Otherwise the run ends once the point has
+// essentially reached its limit (within 3% of the window size).
+function niceT(t){
+  const r = t <= 10 ? Math.ceil(t) : t <= 20 ? 2*Math.ceil(t/2) : 5*Math.ceil(t/5);
+  return Math.max(2, Math.min(40, r));
+}
+function autoEnd(){
+  const tmax = 40, dt = 0.005, L = S.L;
+  const inWin = p => Math.abs(p[0]) <= L && Math.abs(p[1]) <= L;
+  let wasIn = inWin([S.x0, S.y0]);
+  for (let t = dt; t <= tmax; t += dt){            // 1) first exit from the window
+    const p = solve(t);
+    if (inWin(p)) wasIn = true;
+    else if (wasIn) return {T: niceT(t), stop: t};
+  }
+  const {a,b,c,d} = S, s = (a+d)/2, del = s*s - (a*d - b*c);
+  if (del < -1e-12 && Math.abs(s) < 1e-9){          // 2) center: two full periods
+    const two = 2 * 2*Math.PI/Math.sqrt(-del);
+    return {T: niceT(two), stop: Math.min(40, two)};
+  }
+  const lim = solve(400);                           // 3) settle near the limit point
+  if (isFinite(lim[0]) && isFinite(lim[1])){
+    for (let t = 0; t <= tmax; t += dt){
+      const p = solve(t);
+      if (Math.hypot(p[0]-lim[0], p[1]-lim[1]) < 0.03*L){ const T = niceT(t); return {T, stop: T}; }
+    }
+  }
+  return {T: 20, stop: 20};
 }
 
 function recompute(){
@@ -207,7 +243,7 @@ function fit(){
 }
 
 function tickStep(range){ return range <= 2 ? 1 : range <= 5 ? 1 : range <= 10 ? 2 : 5; }
-function tStep(T){ return T <= 10 ? 1 : T <= 20 ? 2 : 5; }
+function tStep(T){ return T <= 4 ? 0.5 : T <= 10 ? 1 : T <= 20 ? 2 : 5; }
 const fmtTick = v => (Math.abs(v) < 1e-9 ? '0' : (v < 0 ? '−' + Math.abs(+v.toFixed(2)) : '' + +v.toFixed(2)));
 
 function clip(r, fn){ ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip(); fn(); ctx.restore(); }
@@ -471,11 +507,19 @@ function pair(key, onChange){
 function setPair(key, v){ $(key + '_r').value = v; $(key + '_n').value = +(+v).toFixed(3); }
 
 function matrixChanged(){ $('preset').value = 'custom'; refresh(); }
-function refresh(){ recompute(); updateSystem(); draw(); }
+function refresh(){
+  if (S.auto){
+    const r = autoEnd(); S.T = r.T; S.tStop = r.stop;
+    $('T_r').value = S.T; $('T_n').value = +S.T.toFixed(2); $('t_r').max = S.T;
+    S.t = Math.min(S.t, S.T); syncT();
+  } else S.tStop = S.T;
+  recompute(); updateSystem(); draw();
+}
 
 ['a','b','c','d'].forEach(k => pair(k, matrixChanged));
 pair('t', () => { S.t = Math.max(0, Math.min(S.T, S.t)); S.playing = false; syncPlay(); draw(); });
 pair('T', () => {
+  S.auto = false; $('cbAuto').checked = false;     // a hand-chosen end time turns off auto
   S.T = Math.max(1, S.T); $('t_r').max = S.T; S.t = Math.min(S.t, S.T); syncT(); refresh();
 });
 pair('sp', () => {});
@@ -500,11 +544,12 @@ document.querySelectorAll('#comp button').forEach(btn => btn.addEventListener('c
 }));
 
 [cbField, cbTrace, cbEig].forEach(cb => cb.addEventListener('change', draw));
-$('win').addEventListener('change', e => { S.L = +e.target.value; draw(); });
+$('win').addEventListener('change', e => { S.L = +e.target.value; refresh(); });
+$('cbAuto').addEventListener('change', e => { S.auto = e.target.checked; refresh(); });
 
-function play(){ if (S.t >= S.T - 1e-9) S.t = 0; S.playing = true; last = null; syncPlay(); }
+function play(){ if (S.t >= S.tStop - 1e-9) S.t = 0; S.playing = true; last = null; syncPlay(); }
 $('play').addEventListener('click', () => { if (S.playing){ S.playing = false; syncPlay(); } else play(); });
-$('step').addEventListener('click', () => { S.playing = false; syncPlay(); S.t = Math.min(S.T, S.t + S.T/40); syncT(); draw(); });
+$('step').addEventListener('click', () => { S.playing = false; syncPlay(); S.t = Math.min(S.tStop, S.t + S.T/40); syncT(); draw(); });
 $('reset').addEventListener('click', () => { S.playing = false; syncPlay(); S.t = 0; syncT(); draw(); });
 
 // click in phase plane to choose a start point
@@ -524,7 +569,7 @@ function loop(ts){
   if (S.playing){
     if (last !== null){
       S.t += (ts - last)/1000 * S.speed;
-      if (S.t >= S.T){ S.t = S.T; S.playing = false; syncPlay(); }
+      if (S.t >= S.tStop){ S.t = S.tStop; S.playing = false; syncPlay(); }
       syncT(); draw();
     }
     last = ts;
@@ -537,7 +582,7 @@ function loop(ts){
 setPair('T', S.T); $('t_r').max = S.T; syncT();
 setPair('sp', S.speed);
 window.addEventListener('resize', fit);
-recompute(); updateSystem(); fit();   // loads paused at t = 0; press Play to start
+refresh(); fit();   // loads paused at t = 0; press Play to start
 requestAnimationFrame(loop);
 </script>
 </body>
