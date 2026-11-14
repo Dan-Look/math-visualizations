@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trace–Determinant Explorer</title>
+<style>
+  :root{ --traj:#6d28d9; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f8fafc; --pt:#dc2626; --box:#0891b2; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+  .app{display:flex;gap:16px;padding:12px;align-items:flex-start}
+  .controls{width:310px;flex:0 0 310px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:15px;
+            max-height:calc(100vh - 24px);overflow-y:auto;position:sticky;top:12px}
+  .stage{flex:1;display:flex;justify-content:flex-start;min-width:0}
+  canvas{background:#fff;border:1px solid var(--line);border-radius:12px;display:block;touch-action:none}
+  h1{font-size:18px;margin:0 0 10px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:12px 0 5px}
+  .system{font-family:"Cambria Math","STIX Two Math","Times New Roman",serif;font-size:20px;line-height:1.5;background:#f3f4f6;border-radius:8px;padding:6px 12px}
+  .row{display:grid;grid-template-columns:30px 1fr 66px;align-items:center;gap:8px;margin:3px 0}
+  .row label{font-family:"Cambria Math","Times New Roman",serif;font-style:italic;font-size:18px}
+  .row label.plain{font-family:inherit;font-style:normal;font-size:13px;color:var(--muted)}
+  input[type=range]{width:100%;accent-color:var(--pt)}
+  input[type=number]{width:66px;padding:3px 5px;font-size:14px;border:1px solid #d1d5db;border-radius:6px}
+  .boxrow{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:14px;color:var(--muted)}
+  .boxrow i{font-family:"Cambria Math","Times New Roman",serif;font-size:18px;color:var(--ink);width:22px}
+  .boxrow input{width:62px}
+  .btns{display:flex;gap:6px;margin-top:6px}
+  .btns button{flex:1;padding:8px 0;font-size:14px;border:1px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer}
+  .btns button.primary{background:var(--box);border-color:var(--box);color:#fff}
+  .btns button:hover{filter:brightness(.96)}
+  .checks label{display:flex;align-items:center;gap:8px;margin:4px 0;cursor:pointer}
+  .checks input{width:16px;height:16px;accent-color:var(--traj)}
+  .hint{font-size:13px;color:var(--muted);margin:4px 0 0}
+  @media (max-width: 960px){ .app{flex-direction:column} .controls{width:100%;flex:none;position:static;max-height:none} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="controls">
+    <h1>Trace–Determinant Explorer</h1>
+    <div class="system" id="sys"></div>
+
+    <h2>Point in the TD plane</h2>
+    <div class="row"><label for="T_r">T</label><input type="range" id="T_r" min="-4" max="4" step="0.01"><input type="number" id="T_n" step="0.1"></div>
+    <div class="row"><label for="D_r">D</label><input type="range" id="D_r" min="-3" max="5" step="0.01"><input type="number" id="D_n" step="0.1"></div>
+    <p class="hint">Or drag the red point. It snaps onto the bifurcation curves.</p>
+
+    <h2>Show</h2>
+    <div class="checks">
+      <label><input type="checkbox" id="cbField" checked> Direction field</label>
+      <label><input type="checkbox" id="cbLines" checked> Straight-line solutions</label>
+      <label><input type="checkbox" id="cbShade"> Shade the regions</label>
+      <label><input type="checkbox" id="cbNames"> Names and eigenvalues</label>
+    </div>
+
+    <h2>Box path</h2>
+    <div class="checks"><label><input type="checkbox" id="cbBox"> Show the box path</label></div>
+    <div class="boxrow"><i>T</i><input type="number" id="bT0" step="0.5"> to <input type="number" id="bT1" step="0.5"></div>
+    <div class="boxrow"><i>D</i><input type="number" id="bD0" step="0.5"> to <input type="number" id="bD1" step="0.5"></div>
+    <div class="btns">
+      <button id="play" class="primary">▶ Play</button>
+      <button id="step">Step</button>
+      <button id="next">Next ▸</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div class="row"><label class="plain" for="sp_r">speed</label><input type="range" id="sp_r" min="0.2" max="3" step="0.1"><input type="number" id="sp_n" step="0.1" min="0.1"></div>
+    <div class="checks"><label><input type="checkbox" id="cbPause" checked> Pause at each bifurcation</label></div>
+  </div>
+
+  <div class="stage"><canvas id="cv"></canvas></div>
+</div>
+
+<script>
+// =====================================================================
+//  Model: for a point (T, D) we use the matrix A = [[0, 1], [-D, T]],
+//  which has trace T and determinant D (the system x' = y, y' = -Dx + Ty).
+//  Its eigenvalues are λ = (T ± √(T² − 4D))/2 with eigenvectors (1, λ).
+// =====================================================================
+const S = {T:-2, D:0.75, box:{T0:-2.5, T1:2.5, D0:-1, D1:3}, s:0, playing:false, speed:1};
+const PL = 3;                                   // phase-plane window: −3 ≤ x, y ≤ 3
+const TD = {T0:-4, T1:4, D0:-3, D1:5};          // TD-plane window
+const COL = {traj:'#6d28d9', ink:'#1f2937', grid:'#eef0f3', axis:'#9ca3af', field:'#c4c9d2',
+             eig:'#059669', pt:'#dc2626', box:'#0891b2', curve:'#111827'};
+const TOL = 1e-9;
+
+// Exact solution of x' = Ax from (x0, y0): e^{At} = e^{st}(C I + S M), s = T/2, M = A − sI, M² = δI.
+function solve(x0, y0, t){
+  const a = 0, b = 1, c = -S.D, d = S.T;
+  const s = S.T/2, del = s*s - S.D;
+  let C, Sv;
+  if (del > 1e-12){ const r = Math.sqrt(del); C = Math.cosh(r*t); Sv = Math.sinh(r*t)/r; }
+  else if (del < -1e-12){ const w = Math.sqrt(-del); C = Math.cos(w*t); Sv = Math.sin(w*t)/w; }
+  else { C = 1; Sv = t; }
+  const e = Math.exp(s*t);
+  return [ e*((C + Sv*(a - s))*x0 + Sv*b*y0), e*(Sv*c*x0 + (C + Sv*(d - s))*y0) ];
+}
+const vel = (x, y) => [y, -S.D*x + S.T*y];
+
+// ---------- Classification ----------
+function eig(){
+  const {T, D} = S, disc = T*T - 4*D;
+  if (Math.abs(disc) <= TOL) return {kind:'repeated', l1:T/2, l2:T/2};
+  if (disc > 0){ const r = Math.sqrt(disc); return {kind:'real', l1:(T + r)/2, l2:(T - r)/2}; }
+  return {kind:'complex', re:T/2, im:Math.sqrt(-disc)/2};
+}
+function typeName(){
+  const {T, D} = S, e = eig();
+  if (Math.abs(D) <= TOL){
+    if (Math.abs(T) <= TOL) return 'Both eigenvalues zero';
+    return T < 0 ? 'Zero and negative eigenvalues' : 'Zero and positive eigenvalues';
+  }
+  if (D < 0) return 'Saddle';
+  if (e.kind === 'repeated') return T < 0 ? 'Repeated sink' : 'Repeated source';
+  if (e.kind === 'real') return T < 0 ? 'Real sink' : 'Real source';
+  if (Math.abs(T) <= TOL) return 'Center';
+  return T < 0 ? 'Spiral sink' : 'Spiral source';
+}
+const fm = v => { const r = +(Math.abs(v) < 5e-4 ? 0 : v).toFixed(2); return r < 0 ? '−' + Math.abs(r) : '' + r; };
+function eigText(){
+  const e = eig();
+  if (e.kind === 'complex') return `λ = ${fm(e.re)} ± ${fm(e.im)}i`;
+  if (e.kind === 'repeated') return `λ = ${fm(e.l1)} (repeated)`;
+  return `λ = ${fm(e.l1)}, ${fm(e.l2)}`;
+}
+
+// ---------- Layout ----------
+const L0 = 56, GAP = 70, RM = 26, T0 = 46, BM = 46;
+let W = 0, H = 0;
+const rTD = {}, rPh = {};
+function layout(availW, availH){
+  let P = Math.min((availW - L0 - GAP - RM)/2, availH - T0 - BM);
+  if (P >= 300){                                       // side by side
+    P = Math.floor(P);
+    Object.assign(rTD, {x:L0, y:T0, w:P, h:P});
+    Object.assign(rPh, {x:L0 + P + GAP, y:T0, w:P, h:P});
+    W = L0 + 2*P + GAP + RM; H = T0 + P + BM;
+  } else {                                             // stacked (narrow screens)
+    P = Math.floor(Math.max(260, availW - L0 - RM));
+    Object.assign(rTD, {x:L0, y:T0, w:P, h:P});
+    Object.assign(rPh, {x:L0, y:T0 + P + BM + T0, w:P, h:P});
+    W = L0 + P + RM; H = 2*(T0 + P + BM);
+  }
+}
+// coordinate maps
+const tdX = T => rTD.x + (T - TD.T0)/(TD.T1 - TD.T0)*rTD.w;
+const tdY = D => rTD.y + (TD.D1 - D)/(TD.D1 - TD.D0)*rTD.h;
+const tdT = px => TD.T0 + (px - rTD.x)/rTD.w*(TD.T1 - TD.T0);
+const tdD = py => TD.D1 - (py - rTD.y)/rTD.h*(TD.D1 - TD.D0);
+const phX = x => rPh.x + (x + PL)/(2*PL)*rPh.w;
+const phY = y => rPh.y + (PL - y)/(2*PL)*rPh.h;
+
+// ---------- Canvas helpers ----------
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+let scale = 1;
+function fit(){
+  const st = document.querySelector('.stage');
+  const availW = st.clientWidth - 2;
+  const availH = window.innerWidth > 960 ? window.innerHeight - 26 : 10000;
+  layout(availW, availH);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); scale = dpr;
+  draw();
+}
+function clip(r, fn){ ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip(); fn(); ctx.restore(); }
+function line(x1,y1,x2,y2){ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+function dot(x,y,r,fill,stroke,lw){ ctx.beginPath(); ctx.arc(x,y,r,0,2*Math.PI); if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||2;ctx.stroke();} }
+function arrowHead(x,y,ang,size,col){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang); ctx.fillStyle=col;
+  ctx.beginPath(); ctx.moveTo(size,0); ctx.lineTo(-size*0.8, size*0.6); ctx.lineTo(-size*0.8,-size*0.6); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+const fmtTick = v => (Math.abs(v) < 1e-9 ? '0' : (v < 0 ? '−' + Math.abs(+v.toFixed(2)) : '' + +v.toFixed(2)));
+function tickFont(){ ctx.font = '15px system-ui,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = '#4b5563'; }
+function italic(txt, x, y, align, size, col){
+  ctx.font = `italic ${size||21}px "Cambria Math","Times New Roman",serif`; ctx.fillStyle = col || COL.ink;
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, x, y);
+}
+function title(txt, x, y){
+  ctx.font = '600 16px system-ui,-apple-system,Segoe UI,sans-serif'; ctx.fillStyle = COL.ink;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(txt, x, y);
+}
+function label(txt, x, y, col, align, size, rot){
+  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot);
+  ctx.font = `600 ${size||14}px system-ui,-apple-system,Segoe UI,sans-serif`; ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(txt).width + 8;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  const x0 = (align === 'left') ? -4 : (align === 'right') ? -w + 4 : -w/2;
+  ctx.fillRect(x0, -10, w, 20);
+  ctx.fillStyle = col; ctx.fillText(txt, 0, 0); ctx.restore();
+}
+
+// ---------- TD plane ----------
+function drawTD(){
+  const r = rTD;
+  ctx.fillStyle = '#fff'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  clip(r, () => {
+    if (cbShade.checked){
+      // saddle region D < 0
+      ctx.fillStyle = '#eef2ff'; ctx.fillRect(r.x, tdY(0), r.w, r.y + r.h - tdY(0));
+      // real sink/source: between D = 0 and the parabola
+      ctx.fillStyle = '#ecfdf5'; ctx.beginPath(); ctx.moveTo(tdX(TD.T0), tdY(0));
+      for (let i = 0; i <= 200; i++){ const T = TD.T0 + i/200*(TD.T1 - TD.T0); ctx.lineTo(tdX(T), tdY(T*T/4)); }
+      ctx.lineTo(tdX(TD.T1), tdY(0)); ctx.closePath(); ctx.fill();
+      // spirals: above the parabola
+      ctx.fillStyle = '#fff7ed'; ctx.beginPath(); ctx.moveTo(tdX(TD.T0), r.y);
+      for (let i = 0; i <= 200; i++){ const T = TD.T0 + i/200*(TD.T1 - TD.T0); ctx.lineTo(tdX(T), tdY(T*T/4)); }
+      ctx.lineTo(tdX(TD.T1), r.y); ctx.closePath(); ctx.fill();
+    }
+    // grid
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    for (let T = TD.T0; T <= TD.T1; T++) line(tdX(T), r.y, tdX(T), r.y + r.h);
+    for (let D = TD.D0; D <= TD.D1; D++) line(r.x, tdY(D), r.x + r.w, tdY(D));
+    // axes
+    ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5;
+    line(tdX(0), r.y, tdX(0), r.y + r.h);
+    // bifurcation curves: D = 0, the parabola D = T²/4, and T = 0 for D > 0
+    ctx.strokeStyle = COL.curve; ctx.lineWidth = 2.5;
+    line(r.x, tdY(0), r.x + r.w, tdY(0));
+    line(tdX(0), tdY(0), tdX(0), r.y);
+    ctx.beginPath();
+    for (let i = 0; i <= 300; i++){ const T = TD.T0 + i/300*(TD.T1 - TD.T0); const px = tdX(T), py = tdY(T*T/4); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.stroke();
+
+    if (cbNames.checked){
+      label('Saddle', tdX(0), tdY(-1.8), '#3730a3', 'center', 15);
+      label('Real sink', tdX(-3.3), tdY(0.45), '#047857', 'center', 14);
+      label('Real source', tdX(3.3), tdY(0.45), '#047857', 'center', 14);
+      label('Spiral sink', tdX(-1.6), tdY(3.4), '#c2410c', 'center', 15);
+      label('Spiral source', tdX(1.6), tdY(3.4), '#c2410c', 'center', 15);
+      label('Center', tdX(0) + 6, tdY(4.6), COL.curve, 'left', 13);
+      { // "Repeated" written along the parabola, on the spiral side
+        const T = -3.1, ang = Math.atan2(T/2 * -(rTD.h/(TD.D1-TD.D0)), rTD.w/(TD.T1-TD.T0)) + Math.PI;
+        const nx = Math.sin(ang), ny = -Math.cos(ang);
+        label('Repeated', tdX(T) - 14*nx, tdY(T*T/4) - 14*ny, COL.curve, 'center', 13, ang - Math.PI);
+      }
+      label('Zero eigenvalue', tdX(-0.25), tdY(0) + 14, COL.curve, 'right', 13);
+    }
+
+    // box path
+    if (cbBox.checked){
+      const b = S.box;
+      ctx.strokeStyle = COL.box; ctx.lineWidth = 2.5; ctx.setLineDash([9,6]);
+      ctx.strokeRect(tdX(b.T0), tdY(b.D1), tdX(b.T1) - tdX(b.T0), tdY(b.D0) - tdY(b.D1));
+      ctx.setLineDash([]);
+      for (const [T, D] of corners()) dot(tdX(T), tdY(D), 6, '#fff', COL.box, 2.5);
+      // direction of travel (counterclockwise from the lower-left corner)
+      const mids = [[(b.T0+b.T1)/2, b.D0, 0], [b.T1, (b.D0+b.D1)/2, -Math.PI/2], [(b.T0+b.T1)/2, b.D1, Math.PI], [b.T0, (b.D0+b.D1)/2, Math.PI/2]];
+      for (const [T, D, ang] of mids) arrowHead(tdX(T), tdY(D), ang, 10, COL.box);
+    }
+
+    // the point
+    dot(tdX(S.T), tdY(S.D), 9, COL.pt, '#fff', 2.5);
+    if (onCurve()) dot(tdX(S.T), tdY(S.D), 14, null, COL.pt, 2);
+  });
+  ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 1; ctx.strokeRect(r.x, r.y, r.w, r.h);
+  // ticks and labels
+  tickFont(); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let T = TD.T0; T <= TD.T1; T++) ctx.fillText(fmtTick(T), tdX(T), r.y + r.h + 6);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let D = TD.D0; D <= TD.D1; D++) ctx.fillText(fmtTick(D), r.x - 8, tdY(D));
+  title('Trace–determinant plane', r.x, r.y - 14);
+  italic('T', r.x + r.w + 13, tdY(0));
+  italic('D', tdX(0), r.y - 13);
+}
+function onCurve(){ return Math.abs(S.D) <= TOL || (S.D > 0 && Math.abs(S.T) <= TOL) || (S.D > 0 && Math.abs(S.T*S.T - 4*S.D) <= TOL); }
+
+// ---------- Phase portrait ----------
+// Trajectory through (x0, y0), traced backward and forward in time with roughly
+// even spacing on screen. Stops when it leaves a margin around the window, when it
+// is essentially at an equilibrium, or (for complex eigenvalues) after a few turns.
+function trajectory(x0, y0){
+  const e = eig();
+  const tmax = e.kind === 'complex' ? Math.min(60, (Math.abs(e.re) < TOL ? 1.02 : 6) * 2*Math.PI/e.im) : 40;
+  const step = 2.5 * (2*PL)/rPh.w;             // about 2.5 pixels per sample
+  const branch = dir => {
+    const pts = []; let t = 0;
+    for (let k = 0; k < 4000; k++){
+      const p = k === 0 ? [x0, y0] : solve(x0, y0, t);
+      if (!isFinite(p[0]) || Math.abs(p[0]) > 1.6*PL || Math.abs(p[1]) > 1.6*PL){ pts.push(p); break; }
+      pts.push(p);
+      const v = vel(p[0], p[1]), sp = Math.hypot(v[0], v[1]);
+      if (sp < 1e-4*PL || Math.abs(t) > tmax || (S.D > TOL && Math.hypot(p[0], p[1]) < 0.02*PL)) break;
+      t += dir * Math.min(step/sp, 0.5);
+    }
+    return pts;
+  };
+  const back = branch(-1), fwd = branch(1);
+  return back.reverse().concat(fwd.slice(1));   // in forward-time order
+}
+function startPoints(){
+  const e = eig(), pts = [];
+  if (e.kind === 'complex'){
+    if (Math.abs(e.re) < TOL){                       // center: nested closed orbits
+      for (let r = 0.5; r <= 2.95; r += 0.6) pts.push([r*PL/3, 0]);
+    } else {                                         // spirals: a few long trajectories
+      for (let k = 0; k < 3; k++){ const a = k*2*Math.PI/3 + 0.3; pts.push([0.95*PL*Math.cos(a), 0.95*PL*Math.sin(a)]); }
+    }
+    return pts;
+  }
+  for (let k = 0; k < 12; k++){ const a = (k + 0.5)*2*Math.PI/12; pts.push([0.92*PL*Math.cos(a), 0.92*PL*Math.sin(a)]); }
+  for (let k = 0; k < 6; k++){ const a = (k + 0.25)*2*Math.PI/6; pts.push([0.45*PL*Math.cos(a), 0.45*PL*Math.sin(a)]); }
+  return pts;
+}
+function eigenLines(){
+  const e = eig();
+  if (e.kind === 'complex') return [];
+  if (e.kind === 'repeated') return [{lam:e.l1, v:[1, e.l1]}];
+  return [{lam:e.l1, v:[1, e.l1]}, {lam:e.l2, v:[1, e.l2]}];
+}
+function drawPhase(){
+  const r = rPh;
+  ctx.fillStyle = '#fff'; ctx.fillRect(r.x, r.y, r.w, r.h);
+  clip(r, () => {
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    for (let v = -PL; v <= PL; v++){ line(phX(v), r.y, phX(v), r.y + r.h); line(r.x, phY(v), r.x + r.w, phY(v)); }
+    ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5;
+    line(r.x, phY(0), r.x + r.w, phY(0)); line(phX(0), r.y, phX(0), r.y + r.h);
+
+    if (cbField.checked){
+      const n = 15, cell = r.w/n;
+      ctx.strokeStyle = COL.field; ctx.lineWidth = 1.4;
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++){
+        const px = r.x + (i + 0.5)*cell, py = r.y + (j + 0.5)*cell;
+        const x = -PL + (i + 0.5)*2*PL/n, y = PL - (j + 0.5)*2*PL/n;
+        const [vx, vy] = vel(x, y), m = Math.hypot(vx, vy); if (m < 1e-12) continue;
+        const len = 0.36*cell, ux = vx/m, uy = -vy/m;
+        line(px - ux*len, py - uy*len, px + ux*len, py + uy*len);
+        arrowHead(px + ux*len, py + uy*len, Math.atan2(uy, ux), 4.5, COL.field);
+      }
+    }
+
+    // trajectories, each with one arrow in the middle of its visible part
+    ctx.strokeStyle = 'rgba(109,40,217,0.8)'; ctx.lineWidth = 1.8;
+    const isCenter = eig().kind === 'complex' && Math.abs(S.T) < TOL;
+    startPoints().forEach(([x0, y0], idx) => {
+      const pts = trajectory(x0, y0);
+      ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(phX(p[0]), phY(p[1])) : ctx.moveTo(phX(p[0]), phY(p[1]))); ctx.stroke();
+      const vis = pts.filter(p => Math.abs(p[0]) <= PL && Math.abs(p[1]) <= PL);
+      if (vis.length > 8){
+        const frac = isCenter ? 0.12 + 0.17*idx : 0.5;          // stagger the arrows on nested orbits
+        const p = vis[Math.floor(vis.length*frac)], [vx, vy] = vel(p[0], p[1]);
+        if (Math.hypot(vx, vy) > 1e-6) arrowHead(phX(p[0]), phY(p[1]), Math.atan2(-vy, vx), 8, COL.traj);
+      }
+    });
+
+    // straight-line solutions
+    if (cbLines.checked){
+      const lines = eigenLines();
+      const realSS = lines.length === 2 && lines[0].lam*lines[1].lam > 0 && S.D > TOL;
+      const strong = realSS ? (Math.abs(lines[0].lam) > Math.abs(lines[1].lam) ? lines[0].lam : lines[1].lam) : null;
+      for (const {lam, v} of lines){
+        const k = 3*PL/Math.hypot(v[0], v[1]);
+        const zero = Math.abs(lam) < TOL;
+        ctx.strokeStyle = COL.eig; ctx.lineWidth = zero ? 3 : 2.4; ctx.setLineDash(zero ? [] : [10,6]);
+        line(phX(-k*v[0]), phY(-k*v[1]), phX(k*v[0]), phY(k*v[1]));
+        ctx.setLineDash([]);
+        if (zero) continue;                       // a line of equilibria: no motion along it
+        const heads = lam === strong ? 2 : 1;
+        const kk = 0.5*PL/Math.max(Math.abs(v[0]), Math.abs(v[1]));
+        for (const sg of [1, -1]){
+          const px = phX(sg*kk*v[0]), py = phY(sg*kk*v[1]);
+          let ang = Math.atan2(-sg*v[1], sg*v[0]); if (lam < 0) ang += Math.PI;
+          for (let h = 0; h < heads; h++){
+            const off = heads === 2 ? (h ? 8 : -8) : 0;
+            arrowHead(px + off*Math.cos(ang), py + off*Math.sin(ang), ang, 11, COL.eig);
+          }
+        }
+      }
+    }
+    // equilibrium at the origin
+    if (Math.abs(S.D) > TOL) dot(phX(0), phY(0), 5, COL.ink);
+  });
+  ctx.strokeStyle = '#d1d5db'; ctx.lineWidth = 1; ctx.strokeRect(r.x, r.y, r.w, r.h);
+  tickFont(); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let v = -PL; v <= PL; v++) ctx.fillText(fmtTick(v), phX(v), r.y + r.h + 6);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let v = -PL; v <= PL; v++) ctx.fillText(fmtTick(v), r.x - 8, phY(v));
+  italic('x', r.x + r.w + 13, phY(0)); italic('y', phX(0), r.y - 13);
+  if (cbNames.checked){
+    title(typeName(), r.x, r.y - 14);
+    ctx.font = 'italic 17px "Cambria Math","Times New Roman",serif'; ctx.fillStyle = '#4b5563'; ctx.textAlign = 'right';
+    ctx.fillText(eigText(), r.x + r.w, r.y - 14);
+  } else title('Phase portrait', r.x, r.y - 14);
+}
+
+function draw(){
+  ctx.setTransform(scale,0,0,scale,0,0);
+  ctx.clearRect(0, 0, W, H);
+  drawTD(); drawPhase();
+}
+
+// ---------- System display & controls ----------
+const $ = id => document.getElementById(id);
+const cbField = $('cbField'), cbLines = $('cbLines'), cbShade = $('cbShade'), cbNames = $('cbNames'), cbBox = $('cbBox'), cbPause = $('cbPause');
+function coef(v){ return +v.toFixed(2); }
+function updateSystem(){
+  const D = coef(S.D), T = coef(S.T);
+  let rhs = '';
+  if (D !== 0) rhs += (D > 0 ? '−' : '') + (Math.abs(D) === 1 ? '' : Math.abs(D)) + '<i>x</i>';
+  if (T !== 0) rhs += (rhs ? (T > 0 ? ' + ' : ' − ') : (T < 0 ? '−' : '')) + (Math.abs(T) === 1 ? '' : Math.abs(T)) + '<i>y</i>';
+  $('sys').innerHTML = `<i>x</i>′ = <i>y</i><br><i>y</i>′ = ${rhs || '0'}`;
+}
+function syncTD(){
+  $('T_r').value = S.T; $('T_n').value = +S.T.toFixed(3);
+  $('D_r').value = S.D; $('D_n').value = +S.D.toFixed(3);
+}
+function setPoint(T, D){ S.T = T; S.D = D; syncTD(); updateSystem(); draw(); }
+
+for (const k of ['T','D']){
+  $(k + '_r').addEventListener('input', () => { stop(); S[k] = +$(k + '_r').value; $(k + '_n').value = $(k + '_r').value; updateSystem(); draw(); });
+  $(k + '_n').addEventListener('input', () => { const v = $(k + '_n').value; if (v === '' || isNaN(+v)) return; stop(); S[k] = +v; $(k + '_r').value = v; updateSystem(); draw(); });
+}
+[cbField, cbLines, cbShade, cbNames, cbBox].forEach(cb => cb.addEventListener('change', draw));
+
+// box fields
+const boxKeys = ['T0','T1','D0','D1'];
+function syncBox(){ boxKeys.forEach(k => $('b' + k).value = S.box[k]); }
+boxKeys.forEach(k => $('b' + k).addEventListener('input', () => {
+  const v = $('b' + k).value; if (v === '' || isNaN(+v)) return;
+  S.box[k] = +v; normalizeBox(false); cbBox.checked = true; draw();
+}));
+function normalizeBox(sync){
+  const b = S.box;
+  b.T0 = Math.max(TD.T0, Math.min(TD.T1, b.T0)); b.T1 = Math.max(TD.T0, Math.min(TD.T1, b.T1));
+  b.D0 = Math.max(TD.D0, Math.min(TD.D1, b.D0)); b.D1 = Math.max(TD.D0, Math.min(TD.D1, b.D1));
+  if (sync) syncBox();
+}
+const corners = () => { const b = S.box; return [[b.T0,b.D0],[b.T1,b.D0],[b.T1,b.D1],[b.T0,b.D1]]; };
+
+// ---------- Box path animation ----------
+// Arc-length parameter s runs counterclockwise from the lower-left corner.
+function boxLen(){ const b = S.box; return 2*(Math.abs(b.T1 - b.T0) + Math.abs(b.D1 - b.D0)); }
+function boxPos(s){
+  const b = S.box, w = b.T1 - b.T0, h = b.D1 - b.D0, aw = Math.abs(w), ah = Math.abs(h);
+  s = ((s % boxLen()) + boxLen()) % boxLen();
+  if (s <= aw) return [b.T0 + Math.sign(w)*s, b.D0];
+  s -= aw; if (s <= ah) return [b.T1, b.D0 + Math.sign(h)*s];
+  s -= ah; if (s <= aw) return [b.T1 - Math.sign(w)*s, b.D1];
+  s -= aw; return [b.T0, b.D1 - Math.sign(h)*s];
+}
+// Bifurcation curves as functions whose sign changes mark a crossing.
+const CURVES = [
+  {f:(T,D) => D,         ok:(T,D) => true,  snap:(T,D) => [T, 0]},           // D = 0
+  {f:(T,D) => T,         ok:(T,D) => D > 0, snap:(T,D) => [0, D]},           // T = 0 with D > 0
+  {f:(T,D) => T*T - 4*D, ok:(T,D) => D > 0, snap:(T,D) => [T, T*T/4]}        // parabola
+];
+// First crossing strictly after s0 and up to s1 (sampled finely, then bisection).
+function nextCrossing(s0, s1){
+  const n = Math.max(4, Math.ceil((s1 - s0)/0.02));
+  let prev = boxPos(s0), sp = s0;
+  for (let i = 1; i <= n; i++){
+    const s = s0 + (s1 - s0)*i/n, cur = boxPos(s);
+    for (const c of CURVES){
+      const f0 = c.f(...prev), f1 = c.f(...cur);
+      if ((f0 < 0 && f1 > 0) || (f0 > 0 && f1 < 0)){
+        let lo = sp, hi = s;
+        for (let k = 0; k < 60; k++){ const m = (lo + hi)/2; (c.f(...boxPos(m)) < 0) === (f0 < 0) ? lo = m : hi = m; }
+        const p = boxPos(hi);
+        if (c.ok(...p)) return {s:hi, pt:c.snap(...p)};
+      }
+    }
+    prev = cur; sp = s;
+  }
+  return null;
+}
+function stop(){ S.playing = false; syncPlay(); }
+function syncPlay(){ $('play').textContent = S.playing ? '❚❚ Pause' : '▶ Play'; }
+function goTo(s, pt){ S.s = s; const p = pt || boxPos(s); setPoint(p[0], p[1]); }
+let onBox = false;          // true while the point is following the box path
+$('play').addEventListener('click', () => {
+  if (S.playing){ stop(); return; }
+  cbBox.checked = true;
+  if (!onBox){ onBox = true; goTo(0); }
+  S.playing = true; last = null; syncPlay();
+});
+// Step: move a short distance (0.25) along the box, landing exactly on a bifurcation curve if one is in the way
+const STEP = 0.25;
+$('step').addEventListener('click', () => {
+  stop(); cbBox.checked = true;
+  if (!onBox){ onBox = true; goTo(0); return; }
+  const c = nextCrossing(S.s + 1e-7, S.s + STEP);
+  if (c) goTo(c.s + 1e-9, c.pt);
+  else { const s1 = S.s + STEP; goTo(s1 >= boxLen() ? s1 - boxLen() : s1); }
+});
+$('next').addEventListener('click', () => {
+  stop(); cbBox.checked = true;
+  if (!onBox){ onBox = true; goTo(0); return; }
+  const c = nextCrossing(S.s + 1e-7, S.s + boxLen());
+  if (c) goTo(c.s + 1e-9, c.pt); else draw();
+});
+$('reset').addEventListener('click', () => { stop(); cbBox.checked = true; onBox = true; goTo(0); });
+$('sp_r').addEventListener('input', () => { S.speed = +$('sp_r').value; $('sp_n').value = $('sp_r').value; });
+$('sp_n').addEventListener('input', () => { if (+$('sp_n').value > 0){ S.speed = +$('sp_n').value; $('sp_r').value = $('sp_n').value; } });
+
+let last = null;
+function loop(ts){
+  if (S.playing && last !== null){
+    const ds = (ts - last)/1000 * S.speed;           // TD units per second
+    const s1 = S.s + ds;
+    const c = cbPause.checked ? nextCrossing(S.s + 1e-7, s1) : null;
+    if (c){ goTo(c.s + 1e-9, c.pt); stop(); }
+    else goTo(s1 >= boxLen() ? s1 - boxLen() : s1);
+  }
+  last = S.playing ? ts : null;
+  requestAnimationFrame(loop);
+}
+
+// ---------- Dragging the point (and the box corners) ----------
+function toLogical(e){ const r = cv.getBoundingClientRect(); return [(e.clientX - r.left)/r.width*W, (e.clientY - r.top)/r.height*H]; }
+const inTD = (x, y) => x >= rTD.x && x <= rTD.x + rTD.w && y >= rTD.y && y <= rTD.y + rTD.h;
+function snap(T, D){
+  // snap to a bifurcation curve when within about 7 pixels of it
+  const px = 7, dT = px/rTD.w*(TD.T1 - TD.T0), dD = px/rTD.h*(TD.D1 - TD.D0);
+  if (Math.abs(D) < dD) return [T, 0];
+  if (D > 0 && Math.abs(T) < dT) return [0, D];
+  if (D > 0 && Math.abs(D - T*T/4) < dD) return [T, T*T/4];
+  return [T, D];
+}
+// With the box path showing, the dragged point stays on the box; otherwise it moves freely.
+function movePoint(T, D){
+  if (cbBox.checked){
+    onBox = true;
+    let s = boxParam(T, D);
+    // snap onto a bifurcation curve when within about 7 pixels of it along the box
+    const eps = 7/rTD.w*(TD.T1 - TD.T0);
+    const c = nextCrossing(s - eps, s + eps);
+    if (c) goTo(((c.s % boxLen()) + boxLen()) % boxLen(), c.pt); else goTo(s);
+  } else {
+    onBox = false;
+    const c = snap(T, D); setPoint(c[0], c[1]);
+  }
+}
+// Box parameter s of the point on the box nearest to (T, D) (measured on screen).
+function boxParam(T, D){
+  const b = S.box, aw = Math.abs(b.T1 - b.T0), ah = Math.abs(b.D1 - b.D0);
+  const cl = (v, a, c) => Math.max(Math.min(a, c), Math.min(Math.max(a, c), v));
+  const cand = [
+    {p:[cl(T, b.T0, b.T1), b.D0], s:t => Math.abs(t[0] - b.T0)},
+    {p:[b.T1, cl(D, b.D0, b.D1)], s:t => aw + Math.abs(t[1] - b.D0)},
+    {p:[cl(T, b.T0, b.T1), b.D1], s:t => aw + ah + Math.abs(b.T1 - t[0])},
+    {p:[b.T0, cl(D, b.D0, b.D1)], s:t => 2*aw + ah + Math.abs(b.D1 - t[1])}
+  ];
+  let best = null, bd = Infinity;
+  for (const c of cand){
+    const d = Math.hypot(tdX(c.p[0]) - tdX(T), tdY(c.p[1]) - tdY(D));
+    if (d < bd){ bd = d; best = c; }
+  }
+  return best.s(best.p) % boxLen();
+}
+let drag = null;
+cv.addEventListener('pointerdown', e => {
+  const [x, y] = toLogical(e); if (!inTD(x, y)) return;
+  if (cbBox.checked){
+    const i = corners().findIndex(([T, D]) => Math.hypot(tdX(T) - x, tdY(D) - y) < 12);
+    if (i >= 0){ drag = {corner:i}; cv.setPointerCapture(e.pointerId); return; }
+  }
+  stop(); drag = {point:true}; cv.setPointerCapture(e.pointerId);
+  movePoint(tdT(x), tdD(y));
+});
+cv.addEventListener('pointermove', e => {
+  const [x, y] = toLogical(e);
+  if (!drag){
+    const nearCorner = cbBox.checked && corners().some(([T, D]) => Math.hypot(tdX(T) - x, tdY(D) - y) < 12);
+    cv.style.cursor = nearCorner ? 'move' : inTD(x, y) ? 'pointer' : 'default'; return;
+  }
+  const T = Math.max(TD.T0, Math.min(TD.T1, tdT(x))), D = Math.max(TD.D0, Math.min(TD.D1, tdD(y)));
+  if (drag.point) movePoint(T, D);
+  else {
+    const rT = Math.round(T*4)/4, rD = Math.round(D*4)/4, b = S.box;   // corners move in steps of 0.25
+    if (drag.corner === 0){ b.T0 = rT; b.D0 = rD; } else if (drag.corner === 1){ b.T1 = rT; b.D0 = rD; }
+    else if (drag.corner === 2){ b.T1 = rT; b.D1 = rD; } else { b.T0 = rT; b.D1 = rD; }
+    syncBox(); onBox = false; stop(); draw();
+  }
+});
+cv.addEventListener('pointerup', () => { drag = null; });
+
+// ---------- Init ----------
+syncTD(); syncBox(); $('sp_r').value = S.speed; $('sp_n').value = S.speed;
+updateSystem();
+window.addEventListener('resize', fit);
+fit();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
